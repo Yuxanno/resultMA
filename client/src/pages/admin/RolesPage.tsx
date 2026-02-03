@@ -1,0 +1,370 @@
+import { useEffect, useState } from 'react';
+import api from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/ui/Dialog';
+import { Badge } from '@/components/ui/Badge';
+import { useToast } from '@/hooks/useToast';
+import { Plus, Shield, Edit2, Trash2, Check } from 'lucide-react';
+
+interface Role {
+  _id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  permissions: string[];
+  isSystem: boolean;
+}
+
+interface Permission {
+  key: string;
+  label: string;
+  group: string;
+}
+
+export default function RolesPage() {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    displayName: '',
+    description: '',
+    permissions: [] as string[]
+  });
+  const { success, error } = useToast();
+
+  useEffect(() => {
+    fetchRoles();
+    fetchPermissions();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      const { data } = await api.get('/roles');
+      // Фильтруем системные роли - показываем только кастомные
+      const customRoles = data.filter((role: Role) => !role.isSystem);
+      setRoles(customRoles);
+    } catch (err: any) {
+      error('Rollarni yuklashda xatolik');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPermissions = async () => {
+    try {
+      const { data } = await api.get('/roles/permissions/list');
+      setPermissions(data);
+    } catch (err) {
+      console.error('Error fetching permissions');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.displayName) {
+      error('Nom va ko\'rsatiladigan nom majburiy');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      if (editingRole) {
+        await api.put(`/roles/${editingRole._id}`, formData);
+        success('Rol muvaffaqiyatli yangilandi!');
+      } else {
+        await api.post('/roles', formData);
+        success('Rol muvaffaqiyatli yaratildi!');
+      }
+      setFormData({ name: '', displayName: '', description: '', permissions: [] });
+      setEditingRole(null);
+      setShowForm(false);
+      fetchRoles();
+    } catch (err: any) {
+      error(err.response?.data?.message || 'Xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (role: Role) => {
+    setEditingRole(role);
+    setFormData({
+      name: role.name,
+      displayName: role.displayName,
+      description: role.description || '',
+      permissions: role.permissions
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (roleId: string) => {
+    if (!confirm('Rolni o\'chirmoqchimisiz?')) return;
+    
+    try {
+      await api.delete(`/roles/${roleId}`);
+      fetchRoles();
+      success('Rol o\'chirildi!');
+    } catch (err: any) {
+      error(err.response?.data?.message || 'Xatolik yuz berdi');
+    }
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingRole(null);
+    setFormData({ name: '', displayName: '', description: '', permissions: [] });
+  };
+
+  const togglePermission = (permission: string) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(permission)
+        ? prev.permissions.filter(p => p !== permission)
+        : [...prev.permissions, permission]
+    }));
+  };
+
+  const toggleGroupPermissions = (groupPerms: Permission[]) => {
+    const groupKeys = groupPerms.map(p => p.key);
+    const allSelected = groupKeys.every(key => formData.permissions.includes(key));
+    
+    setFormData(prev => ({
+      ...prev,
+      permissions: allSelected
+        ? prev.permissions.filter(p => !groupKeys.includes(p))
+        : [...new Set([...prev.permissions, ...groupKeys])]
+    }));
+  };
+
+  const groupPermissions = () => {
+    const groups: Record<string, Permission[]> = {};
+    permissions.forEach(perm => {
+      if (!groups[perm.group]) {
+        groups[perm.group] = [];
+      }
+      groups[perm.group].push(perm);
+    });
+    return groups;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 animate-in">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 bg-muted rounded"></div>
+          <div className="h-4 w-64 bg-muted rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6 animate-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Rollar</h1>
+          <p className="text-sm text-muted-foreground mt-1">Tizim rollarini boshqarish</p>
+        </div>
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Rol qo'shish
+        </Button>
+      </div>
+
+      {/* Dialog */}
+      <Dialog open={showForm} onClose={handleCloseForm} className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            {editingRole ? 'Rolni tahrirlash' : 'Yangi rol'}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Rol nomi (inglizcha)"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              disabled={!!editingRole}
+              placeholder="MANAGER"
+              helperText="Faqat katta harflar va pastki chiziq"
+            />
+            
+            <Input
+              label="Ko'rsatiladigan nom"
+              value={formData.displayName}
+              onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+              required
+              placeholder="Menejer"
+            />
+            
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Tavsif
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Rol haqida qisqacha ma'lumot"
+                className="input min-h-[80px] resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Ruxsatlar ({formData.permissions.length} tanlangan)
+              </label>
+              <div className="max-h-[500px] overflow-y-auto space-y-4 border rounded-lg p-4 bg-muted/30">
+                {Object.entries(groupPermissions()).map(([groupName, perms]) => {
+                  const allSelected = perms.every(p => formData.permissions.includes(p.key));
+                  return (
+                    <div key={groupName} className="space-y-2">
+                      <div className="flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur-sm py-1 px-2 -mx-2 rounded-md border-b">
+                        <h4 className="text-sm font-semibold text-foreground">
+                          {groupName}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => toggleGroupPermissions(perms)}
+                          className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                        >
+                          {allSelected ? 'Bekor qilish' : 'Barchasini tanlash'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {perms.map(perm => (
+                          <label
+                            key={perm.key}
+                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                          >
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={formData.permissions.includes(perm.key)}
+                                onChange={() => togglePermission(perm.key)}
+                                className="sr-only"
+                              />
+                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                                formData.permissions.includes(perm.key)
+                                  ? 'bg-primary border-primary'
+                                  : 'border-input'
+                              }`}>
+                                {formData.permissions.includes(perm.key) && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-sm text-foreground">
+                              {perm.label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" loading={loading} className="flex-1">
+                {editingRole ? 'Yangilash' : 'Saqlash'}
+              </Button>
+              <Button type="button" variant="outline" onClick={handleCloseForm} className="flex-1">
+                Bekor qilish
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Roles Grid */}
+      {roles.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Rollar yo'q</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Yangi rol qo'shish uchun yuqoridagi tugmani bosing
+            </p>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Rol qo'shish
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {roles.map((role) => (
+            <Card key={role._id} className="card-hover">
+              <CardContent className="p-5">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Shield className="w-6 h-6 text-primary" />
+                    </div>
+                    {!role.isSystem && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEdit(role)}
+                          className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(role._id)}
+                          className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-base font-semibold text-foreground">{role.displayName}</h3>
+                      {role.isSystem && (
+                        <Badge variant="secondary" size="sm">Tizim</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">{role.name}</p>
+                    {role.description && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{role.description}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 mt-auto">
+                    {role.permissions.slice(0, 2).map(perm => {
+                      const permObj = permissions.find(p => p.key === perm);
+                      return (
+                        <Badge key={perm} variant="secondary" size="sm">
+                          {permObj ? permObj.label : perm}
+                        </Badge>
+                      );
+                    })}
+                    {role.permissions.length > 2 && (
+                      <Badge variant="secondary" size="sm">
+                        +{role.permissions.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

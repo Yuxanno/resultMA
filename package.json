@@ -1,0 +1,28 @@
+{
+  "name": "education-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "overrides": {
+    "use-sync-external-store": "1.2.2"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "tunnel": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run tunnel:wait\"",
+    "tunnel:wait": "node -e \"setTimeout(() => {}, 8000)\" && concurrently \"lt --port 3000\" \"lt --port 5000\"",
+    "tunnel:client": "lt --port 3000",
+    "tunnel:server": "lt --port 5000",
+    "build": "npm run build --workspaces",
+    "install:all": "npm install && npm install --workspaces",
+    "setup:python": "cd server/python && pip install -r requirements.txt"
+  },
+  "devDependencies": {
+    "@types/qrcode.react": "^1.0.5",
+    "concurrently": "^8.2.2"
+  }
+}

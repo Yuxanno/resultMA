@@ -1,0 +1,268 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import api from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { useToast } from '@/hooks/useToast';
+import TestEditor from '@/components/TestEditor';
+import { ArrowLeft, FileText, Save } from 'lucide-react';
+
+export default function CreateTestPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [groups, setGroups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    groupId: '',
+    name: '',
+    subjectId: '',
+    classNumber: 7,
+    questions: [] as any[]
+  });
+  const { success, error } = useToast();
+
+  useEffect(() => {
+    fetchGroups();
+    if (id) {
+      fetchTest(id);
+    }
+  }, [id]);
+
+  const fetchGroups = async () => {
+    try {
+      const { data } = await api.get('/groups');
+      setGroups(data);
+    } catch (err) {
+      console.error('Error fetching groups');
+    }
+  };
+
+  const fetchTest = async (testId: string) => {
+    try {
+      const { data } = await api.get(`/tests/${testId}`);
+      setFormData({
+        groupId: data.groupId?._id || '',
+        name: data.name,
+        subjectId: data.subjectId?._id || '',
+        classNumber: data.classNumber,
+        questions: data.questions || []
+      });
+    } catch (err: any) {
+      console.error('Error fetching test:', err);
+      error('Testni yuklashda xatolik');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!formData.groupId || !formData.name) {
+      error('Guruh va test nomini kiriting');
+      return;
+    }
+
+    if (formData.questions.length === 0) {
+      error('Kamida bitta savol qo\'shing');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const group = groups.find(g => g._id === formData.groupId);
+      if (!group) {
+        error('Guruh topilmadi');
+        return;
+      }
+
+      const testData = {
+        groupId: formData.groupId,
+        name: formData.name,
+        subjectId: group.subjectId._id,
+        classNumber: group.classNumber,
+        questions: formData.questions
+      };
+
+      if (id) {
+        await api.put(`/tests/${id}`, testData);
+        success('Test muvaffaqiyatli yangilandi!');
+        navigate('/teacher/tests');
+      } else {
+        const { data: createdTest } = await api.post('/tests', testData);
+        success('Test muvaffaqiyatli yaratildi!');
+        
+        // Автоматически генерируем варианты для всех студентов группы
+        try {
+          // Получаем студентов группы
+          const { data: students } = await api.get(`/students?groupId=${formData.groupId}`);
+          const studentIds = students.map((s: any) => s._id);
+          
+          if (studentIds.length > 0) {
+            // Генерируем варианты
+            await api.post(`/tests/${createdTest._id}/generate-variants`, {
+              studentIds
+            });
+            console.log(`✅ Автоматически сгенерированы варианты для ${studentIds.length} студентов`);
+          }
+        } catch (variantErr) {
+          console.error('Error auto-generating variants:', variantErr);
+          // Не показываем ошибку пользователю, так как тест уже создан
+        }
+        
+        navigate('/teacher/tests');
+      }
+    } catch (err: any) {
+      console.error('Error saving test:', err);
+      error(err.response?.data?.message || 'Xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNextStep = () => {
+    if (step === 1) {
+      if (!formData.groupId || !formData.name) {
+        error('Guruh va test nomini kiriting');
+        return;
+      }
+      setStep(2);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => navigate('/teacher/tests')}
+            className="shadow-sm"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Orqaga
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              {id ? 'Testni tahrirlash' : 'Yangi test yaratish'}
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Qadam {step}/2
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {step === 1 && (
+            <Card className="border-0 shadow-soft">
+              <CardContent className="p-4 sm:p-6 lg:p-8">
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">
+                      Test ma'lumotlari
+                    </h2>
+                    <p className="text-gray-600 mb-6">
+                      Test nomi va guruhni tanlang
+                    </p>
+                  </div>
+
+                  <Input
+                    label="Test nomi"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    placeholder="1-nazorat ishi"
+                    className="text-lg"
+                  />
+                  
+                  <Select
+                    label="Guruh"
+                    value={formData.groupId}
+                    onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
+                    required
+                    className="text-lg"
+                  >
+                    <option value="">Tanlang</option>
+                    {groups.map((g) => (
+                      <option key={g._id} value={g._id}>
+                        {g.name} ({g.classNumber}-sinf)
+                      </option>
+                    ))}
+                  </Select>
+
+                  <div className="flex gap-3 pt-6 border-t">
+                    <Button 
+                      type="button" 
+                      onClick={handleNextStep}
+                      size="lg"
+                      className="shadow-medium"
+                    >
+                      Keyingi: Savollar qo'shish
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="lg"
+                      onClick={() => navigate('/teacher/tests')}
+                    >
+                      Bekor qilish
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {step === 2 && (
+            <Card className="border-0 shadow-soft">
+              <CardContent className="p-4 sm:p-6 lg:p-8">
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">
+                      Savollar
+                    </h2>
+                    <p className="text-gray-600 mb-6">
+                      Test uchun savollar qo'shing
+                    </p>
+                  </div>
+
+                  <TestEditor
+                    questions={formData.questions}
+                    onChange={(questions) => setFormData({ ...formData, questions })}
+                  />
+
+                  <div className="flex gap-3 pt-6 border-t">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="lg"
+                      onClick={() => setStep(1)}
+                    >
+                      Orqaga
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      loading={loading}
+                      size="lg"
+                      className="shadow-medium"
+                    >
+                      <Save className="w-5 h-5 mr-2" />
+                      {id ? 'Yangilash' : 'Yaratish'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}

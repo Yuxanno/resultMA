@@ -1,0 +1,107 @@
+/* Tiptap Editor Styles */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror p {
+  margin: 0.5em 0;
+}
+
+.ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Formula Node Styles */
+.ProseMirror span[data-type="formula"] {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: baseline;
+}
+
+.ProseMirror .ProseMirror-selectednode {
+  outline: none;
+}
+
+/* MathQuill Styles Override */
+.mathquill-editor {
+  font-size: inherit !important;
+}
+
+.mq-editable-field {
+  border: none !important;
+  width: 100% !important;
+  display: block !important;
+  min-height: 40px !important;
+}
+
+.mq-math-mode .mq-root-block {
+  padding: 0 !important;
+  width: 100% !important;
+  min-height: 40px !important;
+}
+
+/* MathQuill cursor - всегда видимый */
+.mq-cursor {
+  border-left: 2px solid #3b82f6 !important;
+  animation: blink 1s step-end infinite !important;
+  height: 1.2em !important;
+  margin-top: -0.1em !important;
+}
+
+/* Курсор в пустом поле */
+.mq-editable-field.mq-empty .mq-cursor {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Placeholder для пустого MathQuill поля */
+.mq-editable-field.mq-empty::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 1.2em;
+  vertical-align: baseline;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* Hide MathQuill textarea cursor */
+.mq-textarea {
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: -1px !important;
+}
+
+.mq-textarea textarea {
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}

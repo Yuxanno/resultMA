@@ -1,0 +1,64 @@
+import mongoose, { Schema, Document } from 'mongoose';
+
+export interface IQuestionVariant {
+  letter: 'A' | 'B' | 'C' | 'D';
+  text: string;
+  formula?: string;
+  imageUrl?: string;
+}
+
+export interface IQuestion {
+  text: string;
+  formula?: string;
+  imageUrl?: string;
+  variants: IQuestionVariant[];
+  correctAnswer?: 'A' | 'B' | 'C' | 'D' | ''; // Необязательно для вопросов без вариантов
+  points: number;
+}
+
+export interface ITest extends Document {
+  branchId: mongoose.Types.ObjectId;
+  groupId?: mongoose.Types.ObjectId; // Необязательно для черновиков
+  subjectId?: mongoose.Types.ObjectId; // Необязательно для черновиков
+  classNumber: number;
+  name: string;
+  questions: IQuestion[];
+  createdBy: mongoose.Types.ObjectId;
+  createdAt: Date;
+}
+
+const QuestionVariantSchema = new Schema<IQuestionVariant>({
+  letter: { type: String, enum: ['A', 'B', 'C', 'D'], required: true },
+  text: { type: String, required: true },
+  formula: String,
+  imageUrl: String
+}, { _id: false });
+
+const QuestionSchema = new Schema<IQuestion>({
+  text: { type: String, required: true },
+  formula: String,
+  imageUrl: String,
+  variants: [QuestionVariantSchema],
+  correctAnswer: { type: String, enum: ['A', 'B', 'C', 'D', ''], required: false }, // Необязательно для вопросов без вариантов
+  points: { type: Number, required: true, default: 1 }
+}, { _id: false });
+
+const TestSchema = new Schema<ITest>({
+  branchId: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },
+  groupId: { type: Schema.Types.ObjectId, ref: 'Group', required: false }, // Необязательно для черновиков
+  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject', required: false }, // Необязательно для черновиков
+  classNumber: { type: Number, required: true },
+  name: { type: String, required: true },
+  questions: [QuestionSchema],
+  createdBy: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// Add indexes for faster queries
+TestSchema.index({ branchId: 1 });
+TestSchema.index({ groupId: 1 });
+TestSchema.index({ createdBy: 1 });
+TestSchema.index({ branchId: 1, classNumber: 1 }); // Compound index
+TestSchema.index({ createdAt: -1 }); // For sorting
+
+export default mongoose.model<ITest>('Test', TestSchema);

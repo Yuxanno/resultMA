@@ -1,0 +1,48 @@
+import Redis from 'ioredis';
+
+let redisClient: Redis | null = null;
+
+export const connectRedis = async () => {
+  try {
+    // Проверяем, включен ли Redis в конфигурации
+    if (process.env.REDIS_ENABLED !== 'true') {
+      console.log('Redis disabled in configuration');
+      return null;
+    }
+
+    redisClient = new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD || undefined,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      maxRetriesPerRequest: 3,
+    });
+
+    redisClient.on('connect', () => {
+      console.log('✅ Redis connected successfully');
+    });
+
+    redisClient.on('error', (err) => {
+      console.error('❌ Redis connection error:', err.message);
+    });
+
+    return redisClient;
+  } catch (error) {
+    console.error('Failed to connect to Redis:', error);
+    return null;
+  }
+};
+
+export const getRedisClient = (): Redis | null => {
+  return redisClient;
+};
+
+export const disconnectRedis = async () => {
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+  }
+};
