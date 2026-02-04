@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import QRCode from 'qrcode';
 
 interface AnswerSheetProps {
@@ -17,34 +17,11 @@ interface AnswerSheetProps {
   columns?: number; // 2 или 3 столбца
 }
 
-export default function AnswerSheet({ student, test, questions, qrData, columns }: AnswerSheetProps) {
+function AnswerSheet({ student, test, questions, qrData, columns }: AnswerSheetProps) {
   const qrRef = useRef<HTMLCanvasElement>(null);
-
-  // Проверка и логирование
-  useEffect(() => {
-    console.log('AnswerSheet props:', {
-      studentName: student.fullName,
-      variantCode: student.variantCode,
-      questions,
-      columns,
-      testName: test.name,
-      qrData,
-      qrDataType: typeof qrData,
-      qrDataLength: qrData?.length
-    });
-    
-    if (questions <= 0) {
-      console.warn('⚠️ Questions count is 0 or negative:', questions);
-    }
-    
-    if (!qrData || qrData === '') {
-      console.warn('⚠️ QR data is empty or undefined');
-    }
-  }, [student, test, questions, columns, qrData]);
 
   useEffect(() => {
     if (qrRef.current && qrData) {
-      console.log('Generating QR code for:', qrData);
       QRCode.toCanvas(qrRef.current, qrData, {
         width: 80,
         margin: 1,
@@ -53,13 +30,9 @@ export default function AnswerSheet({ student, test, questions, qrData, columns 
           dark: '#000000',
           light: '#FFFFFF'
         }
-      }).then(() => {
-        console.log('QR code generated successfully');
       }).catch((err) => {
         console.error('QR code generation error:', err);
       });
-    } else {
-      console.warn('QR code not generated:', { hasRef: !!qrRef.current, qrData });
     }
   }, [qrData]);
 
@@ -77,7 +50,7 @@ export default function AnswerSheet({ student, test, questions, qrData, columns 
           {['A', 'B', 'C', 'D'].map((letter) => (
             <div key={letter} className="flex items-center">
               {/* Уменьшенные кружки для компактности */}
-              <div className="w-4 h-4 border-[2px] border-gray-900 bg-white rounded-full"></div>
+              <div className="w-4 h-4 rounded-full" style={{ border: '2px solid #000000', backgroundColor: '#ffffff' }}></div>
             </div>
           ))}
         </div>
@@ -112,10 +85,7 @@ export default function AnswerSheet({ student, test, questions, qrData, columns 
   };
 
   return (
-    <div className="bg-white w-[210mm] h-[297mm] mx-auto relative print:m-0 print:h-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
-      {/* Черные квадраты-маркеры убраны */}
-      
-      {/* Основной контент */}
+    <div className="bg-white w-[210mm] h-[297mm] mx-auto relative print:m-0 print:h-auto" style={{ fontFamily: 'Arial, sans-serif', backgroundColor: '#ffffff', willChange: 'transform' }}>
       <div className="pt-[15mm] px-[15mm] pb-[12mm]">
         {/* Header - компактный */}
         <div className="border-[3px] border-gray-900 p-2 mb-2">
@@ -183,3 +153,13 @@ export default function AnswerSheet({ student, test, questions, qrData, columns 
     </div>
   );
 }
+
+export default memo(AnswerSheet, (prevProps, nextProps) => {
+  return (
+    prevProps.student.fullName === nextProps.student.fullName &&
+    prevProps.student.variantCode === nextProps.student.variantCode &&
+    prevProps.questions === nextProps.questions &&
+    prevProps.qrData === nextProps.qrData &&
+    prevProps.columns === nextProps.columns
+  );
+});

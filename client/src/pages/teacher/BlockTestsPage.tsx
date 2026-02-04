@@ -714,7 +714,7 @@ export default function BlockTestsPage() {
 
       {/* Block Tests Grid */}
       {groupedArray.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {groupedArray.map((group: any, groupIndex: number) => {
             const firstTest = group.tests[0];
             const formattedDate = new Date(group.date).toLocaleDateString('uz-UZ', {
@@ -727,66 +727,66 @@ export default function BlockTestsPage() {
               <div
                 key={`${group.classNumber}-${group.dateKey}`}
                 style={{ animationDelay: `${groupIndex * 100}ms` }}
-                className="group animate-slide-in"
+                className="animate-slide-in"
               >
                 <Card 
-                  className="h-full border-2 border-slate-200/50 hover:border-purple-300 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-2 cursor-pointer overflow-hidden"
+                  className="h-full bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer relative"
                   onClick={() => handleCardClick(firstTest)}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <CardContent className="p-4 sm:p-5 lg:p-6 relative">
-                    {/* Icon & Title */}
-                    <div className="flex items-start justify-between mb-3 sm:mb-4">
-                      <div className="w-11 h-11 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                        <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-sm">
+                        <BookOpen className="w-8 h-8 text-white" />
                       </div>
-                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/teacher/block-tests/${firstTest._id}/edit`);
+                          }}
+                          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4 text-slate-600" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTest(group);
+                          }}
+                          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Info */}
-                    <div className="mb-3 sm:mb-4">
-                      <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 group-hover:text-purple-600 transition-colors">
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">
+                      {group.classNumber}-sinf
+                    </h3>
+
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="bg-green-100 text-green-700 px-3 py-1.5 rounded-full text-sm font-semibold">
                         {group.classNumber}-sinf
-                      </h3>
-                      <div className="flex items-center gap-2 text-slate-600 mb-1.5 sm:mb-2">
-                        <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-medium truncate">{formattedDate}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-600 mb-1">
-                        <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-medium">{group.allSubjects.length} ta test</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-medium">{group.totalQuestions} ta savol</span>
+                      </span>
+                      <span className="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full text-sm font-semibold">
+                        {group.allSubjects.length > 0 && group.allSubjects[0].subjectId?.name || 'Matematika'}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-3 mb-4">
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <Users className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium">{formattedDate}</span>
                       </div>
                     </div>
-                    
-                    {/* Actions */}
-                    <div className="flex flex-col xs:flex-row gap-2 pt-3 sm:pt-4 border-t border-slate-200">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex-1 border-2 hover:border-purple-500 hover:text-purple-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/teacher/block-tests/${firstTest._id}/edit`);
-                        }}
-                      >
-                        <Edit2 className="w-4 h-4 mr-1" />
-                        Tahrirlash
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTest(group);
-                        }}
-                        className="border-2 text-red-600 hover:text-red-700 hover:border-red-300"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <BookOpen className="w-4 h-4" />
+                        <span className="text-sm font-medium">{group.totalQuestions} ta savol</span>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-slate-400" />
                     </div>
                   </CardContent>
                 </Card>

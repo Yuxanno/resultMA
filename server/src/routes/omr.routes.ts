@@ -151,21 +151,69 @@ router.post('/check-answers', authenticate, upload.single('image'), async (req, 
                   if (variantInfo.shuffledQuestions && variantInfo.shuffledQuestions.length > 0) {
                     console.log('✅ Используем перемешанные вопросы из варианта');
                     console.log('📦 Shuffled questions count:', variantInfo.shuffledQuestions.length);
-                    console.log('📦 First 5 shuffled answers:', 
-                      variantInfo.shuffledQuestions.slice(0, 5).map((q: any, i: number) => 
-                        `${i + 1}: ${q.correctAnswer}`
-                      ).join(', ')
-                    );
                     
-                    variantInfo.shuffledQuestions.forEach((question: any, index: number) => {
-                      correctAnswers[index + 1] = question.correctAnswer;
-                    });
-                    console.log(`✅ Jami ${Object.keys(correctAnswers).length} ta to'g'ri javob (shuffled)`);
-                    console.log('📦 Final first 5 correct answers:', 
-                      Object.keys(correctAnswers).slice(0, 5).map(key => 
-                        `${key}: ${correctAnswers[parseInt(key)]}`
-                      ).join(', ')
-                    );
+                    // Проверяем, есть ли subjectId у вопросов (новый формат)
+                    const hasSubjectIds = variantInfo.shuffledQuestions.some((q: any) => q.subjectId);
+                    
+                    if (hasSubjectIds) {
+                      console.log('✅ Вопросы содержат subjectId, фильтруем по конфигурации');
+                      
+                      // ВАЖНО: Фильтруем вопросы по конфигурации студента
+                      // Сначала определяем какие предметы выбраны у студента
+                      const selectedSubjectIds = studentConfig.subjects.map((sc: any) => 
+                        (sc.subjectId._id || sc.subjectId).toString()
+                      );
+                      
+                      console.log('📋 Selected subjects:', selectedSubjectIds);
+                      
+                      // Подсчитываем сколько вопросов нужно взять для каждого предмета
+                      const subjectQuestionCounts = new Map();
+                      studentConfig.subjects.forEach((sc: any) => {
+                        const subjectId = (sc.subjectId._id || sc.subjectId).toString();
+                        subjectQuestionCounts.set(subjectId, sc.questionCount);
+                      });
+                      
+                      console.log('📊 Subject question counts:', Array.from(subjectQuestionCounts.entries()));
+                      
+                      // Фильтруем shuffledQuestions по выбранным предметам
+                      let questionNum = 1;
+                      const subjectQuestionCounter = new Map();
+                      
+                      for (const question of variantInfo.shuffledQuestions) {
+                        const questionSubjectId = (question.subjectId?._id || question.subjectId)?.toString();
+                        
+                        // Проверяем, выбран ли этот предмет у студента
+                        if (questionSubjectId && selectedSubjectIds.includes(questionSubjectId)) {
+                          // Проверяем, не превышен ли лимит вопросов для этого предмета
+                          const currentCount = subjectQuestionCounter.get(questionSubjectId) || 0;
+                          const maxCount = subjectQuestionCounts.get(questionSubjectId) || 0;
+                          
+                          if (currentCount < maxCount) {
+                            correctAnswers[questionNum] = question.correctAnswer;
+                            subjectQuestionCounter.set(questionSubjectId, currentCount + 1);
+                            questionNum++;
+                          }
+                        }
+                      }
+                      
+                      console.log(`✅ Jami ${Object.keys(correctAnswers).length} ta to'g'ri javob (filtered shuffled)`);
+                      console.log('📦 Final first 5 correct answers:', 
+                        Object.keys(correctAnswers).slice(0, 5).map(key => 
+                          `${key}: ${correctAnswers[parseInt(key)]}`
+                        ).join(', ')
+                      );
+                      console.log('📊 Questions per subject:', Array.from(subjectQuestionCounter.entries()));
+                    } else {
+                      // Старый формат без subjectId - используем все вопросы
+                      console.log('⚠️ Старый формат вариантов (без subjectId), используем все вопросы');
+                      console.log('⚠️ Рекомендуется пересоздать варианты для правильной фильтрации');
+                      
+                      variantInfo.shuffledQuestions.forEach((question: any, index: number) => {
+                        correctAnswers[index + 1] = question.correctAnswer;
+                      });
+                      
+                      console.log(`✅ Jami ${Object.keys(correctAnswers).length} ta to'g'ri javob (all shuffled - old format)`);
+                    }
                   } else {
                     // Fallback к оригинальным вопросам
                     console.log('⚠️ Shuffled questions topilmadi, original ishlatilmoqda');
@@ -366,17 +414,30 @@ router.post('/check-answers', authenticate, upload.single('image'), async (req, 
     
     // Total questions ni to'g'ri aniqlash
     // PRIORITET:
-    // 1. QR-koddan (eng ishonchli)
-    // 2. Python scanner natijasi (rows_found)
-    // 3. Aniqlangan javoblarning eng katta raqami
+    // 1. Variant shuffledQuestions (самый точный для конкретного студента)
+    // 2. QR-koddan correctAnswers (для блок-тестов может быть больше чем нужно)
+    // 3. Python scanner natijasi (rows_found)
+    // 4. Aniqlangan javoblarning eng katta raqami
     let totalQuestions = 0;
     let totalQuestionsSource = '';
     
-    if (qrFound && qrData && qrData.correctAnswers) {
-      // QR-koddan to'g'ri javoblar soni - ENG ISHONCHLI
+    // Сначала проверяем shuffledQuestions из варианта (самый точный)
+    if (qrFound && variantInfo && variantInfo.shuffledQuestions && variantInfo.shuffledQuestions.length > 0) {
+      // Для блок-тестов: используем длину shuffledQuestions (уже отфильтровано по конфигурации студента)
+      totalQuestions = variantInfo.shuffledQuestions.length;
+      totalQuestionsSource = 'variant shuffledQuestions';
+      console.log('📊 Total questions (from variant shuffledQuestions):', totalQuestions);
+      console.log('📊 Variant info:', {
+        variantCode: variantInfo.variantCode,
+        testType: variantInfo.testType,
+        shuffledQuestionsLength: variantInfo.shuffledQuestions.length
+      });
+    } else if (qrFound && qrData && qrData.correctAnswers) {
+      // QR-koddan to'g'ri javoblar sони (может быть больше для блок-тестов)
       totalQuestions = Object.keys(qrData.correctAnswers).length;
-      totalQuestionsSource = 'QR code';
+      totalQuestionsSource = 'QR code correctAnswers';
       console.log('📊 Total questions (from QR correctAnswers):', totalQuestions);
+      console.log('📊 QR correctAnswers keys:', Object.keys(qrData.correctAnswers).slice(0, 10));
     } else if (result.rows_found && result.rows_found > 0) {
       // Python scanner topgan qatorlar soni
       totalQuestions = result.rows_found;
@@ -407,23 +468,38 @@ router.post('/check-answers', authenticate, upload.single('image'), async (req, 
         const correctAnswers = qrData.correctAnswers;
         const questionOrder = qrData.questionOrder || [];
         
+        // ВАЖНО: Проверяем что correctAnswers не пустой
+        if (Object.keys(correctAnswers).length === 0) {
+          console.error('❌ correctAnswers пустой! Проверьте создание вариантов.');
+          console.error('❌ qrData:', JSON.stringify(qrData, null, 2));
+        }
+        
         let correct = 0;
         let incorrect = 0;
         let unanswered = 0;
         const comparison: any[] = [];
         
         // Barcha savollar bo'yicha tekshirish
-        const totalQuestions = Object.keys(correctAnswers).length;
+        // ВАЖНО: используем totalQuestions из QR-кода (уже вычислено выше)
+        // НЕ переопределяем переменную!
+        const totalQuestionsFromQR = Object.keys(correctAnswers).length;
         
         console.log('🔍 Comparison details:', {
           totalQuestions,
+          totalQuestionsFromQR,
           hasQuestionOrder: questionOrder.length > 0,
           questionOrderLength: questionOrder.length,
           first5CorrectAnswers: Object.keys(correctAnswers).slice(0, 5).map(key => 
             `${key}: ${correctAnswers[parseInt(key)]}`
-          ).join(', ')
+          ).join(', '),
+          first5DetectedAnswers: Object.keys(detectedAnswers).slice(0, 5).map(key => 
+            `${key}: ${detectedAnswers[parseInt(key)]}`
+          ).join(', '),
+          correctAnswersCount: Object.keys(correctAnswers).length,
+          detectedAnswersCount: Object.keys(detectedAnswers).length
         });
         
+        // Используем totalQuestions (уже вычислено выше из QR-кода)
         for (let i = 1; i <= totalQuestions; i++) {
           const studentAnswer = detectedAnswers[i] || null;
           const correctAnswer = correctAnswers[i];

@@ -4,88 +4,58 @@
 
 @layer base {
   :root {
-    /* 🎨 ULTRA MODERN 2025 DESIGN SYSTEM - Inspired by Linear, Vercel, Arc */
+    /* 🎯 CLEAN & FUNCTIONAL DESIGN SYSTEM */
     
-    /* Core Colors - Ultra Clean */
+    /* Core Colors */
     --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
+    --card-foreground: 222 47% 11%;
     
-    /* Primary - Professional Blue (Clean & Modern) */
+    /* Primary - Blue */
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 217 91% 54%;
-    --primary-light: 217 91% 97%;
-    --primary-dark: 217 91% 48%;
     
-    /* Secondary - Slate Gray */
-    --secondary: 215 16% 47%;
+    /* Secondary - Slate */
+    --secondary: 215 20% 65%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-light: 215 16% 97%;
-    --secondary-dark: 215 16% 37%;
     
-    /* Accent - Soft Blue */
+    /* Accent */
     --accent: 210 40% 96%;
     --accent-foreground: 222 47% 11%;
-    --accent-light: 210 40% 98%;
-    --accent-dark: 210 40% 90%;
     
-    /* Success - Fresh Mint */
+    /* Success */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 96%;
-    --success-dark: 142 76% 28%;
     
-    /* Warning - Sunset Orange */
+    /* Warning */
     --warning: 25 95% 53%;
     --warning-foreground: 0 0% 100%;
-    --warning-light: 25 95% 96%;
-    --warning-dark: 25 95% 43%;
     
-    /* Destructive - Hot Red */
+    /* Destructive */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-light: 0 84% 96%;
-    --destructive-dark: 0 84% 48%;
     
-    /* Info - Sky Blue */
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 100%;
-    --info-light: 199 89% 96%;
-    --info-dark: 199 89% 38%;
-    
-    /* Neutrals - Ultra Refined */
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 262 83% 58%;
+    /* Neutrals */
+    --muted: 215 16% 97%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
     
     /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 4%;
+    --popover-foreground: 222 47% 11%;
     
-    /* Radius - Smooth & Modern */
-    --radius: 0.75rem;
-    --radius-sm: 0.5rem;
-    --radius-md: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.5rem;
+    /* Radius - Simple */
+    --radius: 0.5rem;
     
-    /* Shadows - Soft & Elegant */
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
-    --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
-    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.06);
-    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.15);
-    --shadow-2xl: 0 35px 60px -15px rgb(0 0 0 / 0.2);
-    
-    /* Glow Effects */
-    --glow-primary: 0 0 20px rgb(168 85 247 / 0.4);
-    --glow-secondary: 0 0 20px rgb(59 130 246 / 0.4);
-    --glow-accent: 0 0 20px rgb(236 72 153 / 0.4);
+    /* Shadows - Minimal */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   }
 
   .dark {
@@ -165,348 +135,50 @@
 }
 
 @layer components {
-  /* Modern Gradient System - 2025 */
-  .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(221 83% 48%) 50%, hsl(221 83% 43%) 100%);
-  }
-  
-  .gradient-primary-soft {
-    background: linear-gradient(135deg, hsl(var(--primary-light)) 0%, hsl(221 83% 95%) 100%);
-  }
-  
-  .gradient-secondary {
-    background: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(243 75% 54%) 50%, hsl(243 75% 49%) 100%);
-  }
-  
-  .gradient-success {
-    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(158 64% 47%) 50%, hsl(158 64% 42%) 100%);
-  }
-  
-  .gradient-mesh {
-    background: 
-      radial-gradient(at 0% 0%, hsl(221 83% 97%) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsl(243 75% 97%) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, hsl(158 64% 97%) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsl(221 83% 97%) 0px, transparent 50%);
-  }
-  
-  .gradient-hero {
-    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(221 83% 98%) 100%);
-  }
-  
-  /* Glass Morphism - Modern 2025 */
-  .glass {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 
-      0 8px 32px 0 rgba(31, 38, 135, 0.07),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
-  }
-  
-  .glass-dark {
-    background: rgba(17, 25, 40, 0.85);
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.125);
-    box-shadow: 
-      0 8px 32px 0 rgba(0, 0, 0, 0.37),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-  }
-  
-  .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-  }
-  
-  /* Animated gradient border */
-  .gradient-border {
-    position: relative;
-    background: white;
-    border-radius: var(--radius);
-  }
-  
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: var(--radius);
-    padding: 2px;
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-  }
-  
-  /* Interactive Effects - Professional */
-  .hover-lift {
-    @apply transition-all duration-300 ease-out;
-    will-change: transform;
-  }
-  
-  .hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-  }
-  
-  .hover-scale {
-    @apply transition-transform duration-200 ease-out;
-  }
-  
-  .hover-scale:hover {
-    transform: scale(1.02);
-  }
-  
-  .hover-glow {
-    @apply transition-all duration-300;
-  }
-  
-  .hover-glow:hover {
-    box-shadow: 0 0 0 4px hsl(var(--primary-light));
-  }
-  
-  /* Focus ring - Professional */
-  .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background transition-all duration-200;
-  }
-  
-  /* Card System - Modern */
-  .card-hover {
-    @apply transition-all duration-300 ease-out;
-  }
-  
-  .card-hover:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-  
-  .card-interactive {
-    @apply transition-all duration-200 ease-out cursor-pointer;
-  }
-  
-  .card-interactive:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-  
-  .card-interactive:active {
-    transform: translateY(0);
-    box-shadow: var(--shadow-sm);
-  }
-  
-  /* Button Effects */
-  .btn-press {
-    @apply active:scale-[0.98] transition-transform duration-100;
-  }
-  
+  /* Simple Button System */
   .btn-primary {
-    @apply bg-primary hover:bg-primary-hover text-primary-foreground font-medium px-6 py-2.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md btn-press;
+    @apply bg-primary hover:bg-primary-hover text-primary-foreground font-medium px-4 py-2 rounded-lg transition-colors duration-200;
   }
   
   .btn-secondary {
-    @apply bg-secondary hover:bg-secondary-dark text-secondary-foreground font-medium px-6 py-2.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md btn-press;
+    @apply bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium px-4 py-2 rounded-lg transition-colors duration-200;
   }
   
   .btn-outline {
-    @apply border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-medium px-6 py-2.5 rounded-lg transition-all duration-200 btn-press;
+    @apply border border-border text-foreground hover:bg-accent font-medium px-4 py-2 rounded-lg transition-colors duration-200;
   }
   
-  /* Skeleton loader */
-  .skeleton {
-    @apply animate-pulse bg-muted rounded-lg;
+  /* Simple Card */
+  .card-simple {
+    @apply bg-card border border-border rounded-lg p-4 transition-all duration-200 hover:border-primary hover:shadow-md;
   }
   
-  /* Floating animation */
-  .float {
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  /* Pulse glow */
-  .pulse-glow {
-    animation: pulseGlow 2s ease-in-out infinite;
+  /* Focus ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200;
   }
 }
 
 @layer utilities {
-  /* Responsive Container Utilities */
+  /* Responsive utilities */
   .container-responsive {
     @apply w-full mx-auto px-4 sm:px-6 lg:px-8;
   }
   
-  .container-tight {
-    @apply w-full mx-auto px-3 sm:px-4 md:px-6;
-  }
-  
-  /* Responsive Padding */
-  .p-responsive {
-    @apply p-4 sm:p-6 lg:p-8;
-  }
-  
-  .px-responsive {
-    @apply px-4 sm:px-6 lg:px-8;
-  }
-  
-  .py-responsive {
-    @apply py-4 sm:py-6 lg:py-8;
-  }
-  
-  /* Responsive Text Sizes */
-  .text-responsive-xs {
-    @apply text-xs sm:text-sm;
-  }
-  
-  .text-responsive-sm {
-    @apply text-sm sm:text-base;
-  }
-  
-  .text-responsive-base {
-    @apply text-base sm:text-lg;
-  }
-  
-  .text-responsive-lg {
-    @apply text-lg sm:text-xl lg:text-2xl;
-  }
-  
-  .text-responsive-xl {
-    @apply text-xl sm:text-2xl lg:text-3xl;
-  }
-  
-  .text-responsive-2xl {
-    @apply text-2xl sm:text-3xl lg:text-4xl;
-  }
-  
-  .text-responsive-3xl {
-    @apply text-3xl sm:text-4xl lg:text-5xl;
-  }
-  
-  /* Responsive Grid */
-  .grid-responsive-1 {
-    @apply grid grid-cols-1;
-  }
-  
-  .grid-responsive-2 {
-    @apply grid grid-cols-1 sm:grid-cols-2;
-  }
-  
-  .grid-responsive-3 {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
-  }
-  
-  .grid-responsive-4 {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4;
-  }
-  
-  .grid-responsive-auto {
-    @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5;
-  }
-  
-  /* Responsive Flex */
-  .flex-responsive {
-    @apply flex flex-col sm:flex-row;
-  }
-  
-  .flex-responsive-reverse {
-    @apply flex flex-col-reverse sm:flex-row;
-  }
-  
-  /* Touch-Friendly Sizes */
-  .touch-target {
-    @apply min-h-[44px] min-w-[44px];
-  }
-  
-  .touch-target-lg {
-    @apply min-h-[48px] min-w-[48px];
-  }
-  
-  /* Mobile-First Spacing */
-  .gap-responsive {
-    @apply gap-3 sm:gap-4 lg:gap-6;
-  }
-  
-  .gap-responsive-sm {
-    @apply gap-2 sm:gap-3 lg:gap-4;
-  }
-  
-  .gap-responsive-lg {
-    @apply gap-4 sm:gap-6 lg:gap-8;
-  }
-  
-  /* Responsive Borders */
-  .rounded-responsive {
-    @apply rounded-lg sm:rounded-xl lg:rounded-2xl;
-  }
-  
-  /* Mobile Menu Utilities */
-  .mobile-menu-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden;
-  }
-  
-  .mobile-menu-panel {
-    @apply fixed inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 transform transition-transform duration-300 lg:hidden;
-  }
-  
-  /* Responsive Card */
-  .card-responsive {
-    @apply rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8;
-  }
-  
-  /* Hide/Show on Mobile */
-  .mobile-only {
-    @apply block lg:hidden;
-  }
-  
-  .desktop-only {
-    @apply hidden lg:block;
-  }
-  
-  .tablet-up {
-    @apply hidden md:block;
-  }
-  
-  .mobile-tablet {
-    @apply block lg:hidden;
-  }
-  
-  /* Hide Scrollbar */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Text gradients */
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
-  }
-  
-  .text-gradient-primary {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400;
-  }
-  
-  /* Animations */
-  @keyframes shimmer {
-    0% {
-      background-position: -1000px 0;
-    }
-    100% {
-      background-position: 1000px 0;
-    }
-  }
-  
-  .animate-shimmer {
-    animation: shimmer 2s infinite linear;
-    background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
-    background-size: 1000px 100%;
-  }
-  
-  /* Fade in animation */
+  /* Minimal animations - performance optimized */
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
     }
     to {
       opacity: 1;
@@ -515,199 +187,39 @@
   }
   
   .animate-fade-in {
-    animation: fadeIn 0.6s ease-out;
-  }
-  
-  /* Slide animations */
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  @keyframes slideInLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-  
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-  
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-  
-  @keyframes pulseGlow {
-    0%, 100% {
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
-    }
-  }
-  
-  @keyframes gradientShift {
-    0%, 100% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-  }
-  
-  @keyframes bounce-subtle {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-5px);
-    }
-  }
-  
-  @keyframes confetti {
-    0% {
-      transform: translateY(-10px) rotate(0deg);
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(100vh) rotate(720deg);
-      opacity: 0;
-    }
-  }
-  
-  .animate-confetti {
-    animation: confetti 3s ease-in forwards;
-  }
-  
-  .animate-slide-up {
-    animation: slideUp 0.5s ease-out;
+    animation: fadeIn 0.3s ease-out;
   }
   
   .animate-slide-down {
-    animation: slideDown 0.5s ease-out;
+    animation: slideDown 0.2s ease-out;
   }
   
-  .animate-slide-in-left {
-    animation: slideInLeft 0.5s ease-out;
+  /* Simple hover effects - no animations */
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   
-  .animate-slide-in-right {
-    animation: slideInRight 0.5s ease-out;
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
   }
   
-  .animate-scale-in {
-    animation: scaleIn 0.3s ease-out;
-  }
-  
-  .animate-bounce-subtle {
-    animation: bounce-subtle 2s ease-in-out infinite;
-  }
-  
-  /* Shadow utilities - Professional depth */
+  /* Simple shadows */
   .shadow-soft {
-    box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
   }
   
   .shadow-medium {
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1), 0 12px 25px -5px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   }
   
-  .shadow-hard {
-    box-shadow: 0 10px 40px -3px rgba(0, 0, 0, 0.15), 0 20px 50px -8px rgba(0, 0, 0, 0.12);
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
   
-  .shadow-glow-primary {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.2);
-  }
-  
-  .shadow-glow-success {
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.4), 0 0 60px rgba(34, 197, 94, 0.2);
-  }
-  
-  .shadow-glow-warning {
-    box-shadow: 0 0 30px rgba(251, 146, 60, 0.4), 0 0 60px rgba(251, 146, 60, 0.2);
-  }
-  
-  .shadow-inner-soft {
-    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  }
-  
-  /* Backdrop blur utilities */
-  .backdrop-blur-xs {
-    backdrop-filter: blur(2px);
-  }
-  
-  .backdrop-blur-sm {
-    backdrop-filter: blur(4px);
-  }
-  
-  .backdrop-blur-DEFAULT {
-    backdrop-filter: blur(8px);
-  }
-  
-  .backdrop-blur-md {
-    backdrop-filter: blur(12px);
-  }
-  
-  .backdrop-blur-lg {
-    backdrop-filter: blur(16px);
-  }
-  
-  .backdrop-blur-xl {
-    backdrop-filter: blur(24px);
-  }
-  
-  .backdrop-blur-2xl {
-    backdrop-filter: blur(40px);
-  }
-  
-  .backdrop-blur-3xl {
-    backdrop-filter: blur(64px);
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

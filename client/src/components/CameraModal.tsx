@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Camera, RotateCw, Zap, ZapOff } from 'lucide-react';
 import { Button } from './ui/Button';
-import jsQR from 'jsqr';
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -12,63 +11,53 @@ interface CameraModalProps {
 export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-  const detectionIntervalRef = useRef<number | null>(null);
-  const autoCaptureTriggerRef = useRef<number>(0);
   
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [flashEnabled, setFlashEnabled] = useState(false);
-  const [qrDetected, setQrDetected] = useState(false);
-  const [circlesDetected, setCirclesDetected] = useState(false);
-  const [autoCapturing, setAutoCapturing] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       startCamera();
-      startDetection();
-    } else {
-      stopCamera();
-      stopDetection();
     }
 
     return () => {
       stopCamera();
-      stopDetection();
     };
-  }, [isOpen, facingMode]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && stream) {
+      stopCamera();
+      startCamera();
+    }
+  }, [facingMode]);
 
   const startCamera = async () => {
     try {
+      setError(null);
+      stopCamera(); // Остановить предыдущий поток перед запуском нового
+      
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: facingMode,
+          facingMode: { ideal: facingMode },
           width: { ideal: 1920 },
           height: { ideal: 1080 }
         }
       };
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      // Применяем вспышку если включена
-      if (flashEnabled) {
-        const track = mediaStream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities() as any;
-        if (capabilities.torch) {
-          await track.applyConstraints({
-            advanced: [{ torch: true } as any]
-          });
-        }
-      }
-      
       setStream(mediaStream);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Kameraga kirish imkoni yo\'q. Iltimos, brauzer sozlamalarini tekshiring.');
+      setError('Kameraga kirish imkoni yo\'q. Iltimos, brauzer sozlamalarini tekshiring.');
     }
   };
 
@@ -100,97 +89,14 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
     }
   };
 
-  const switchCamera = () => {
+  const switchCamera = async () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-    autoCaptureTriggerRef.current = 0;
-    setQrDetected(false);
-    setCirclesDetected(false);
   };
 
-  const detectQRCode = useCallback((imageData: ImageData): boolean => {
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert',
-    });
-    return !!code;
-  }, []);
-
-  const detectCircles = useCallback((imageData: ImageData): boolean => {
-    // Простая эвристика: проверяем наличие тёмных областей (заполненных кружков)
-    // В реальном OMR листе должно быть много маленьких кружков
-    const data = imageData.data;
-    let darkPixels = 0;
-    const threshold = 100;
-    const sampleRate = 10; // Проверяем каждый 10-й пиксель для производительности
-    
-    for (let i = 0; i < data.length; i += 4 * sampleRate) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const brightness = (r + g + b) / 3;
+  const capturePhoto = async () => {
+    if (videoRef.current && canvasRef.current && !capturing) {
+      setCapturing(true);
       
-      if (brightness < threshold) {
-        darkPixels++;
-      }
-    }
-    
-    // Если есть достаточно тёмных пикселей, считаем что кружки обнаружены
-    const totalSamples = data.length / (4 * sampleRate);
-    const darkRatio = darkPixels / totalSamples;
-    
-    return darkRatio > 0.1 && darkRatio < 0.7; // От 10% до 70% тёмных пикселей
-  }, []);
-
-  const startDetection = () => {
-    detectionIntervalRef.current = window.setInterval(() => {
-      if (videoRef.current && overlayCanvasRef.current && !autoCapturing) {
-        const video = videoRef.current;
-        const canvas = overlayCanvasRef.current;
-        
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          
-          const context = canvas.getContext('2d');
-          if (context) {
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            
-            const qrFound = detectQRCode(imageData);
-            const circlesFound = detectCircles(imageData);
-            
-            setQrDetected(qrFound);
-            setCirclesDetected(circlesFound);
-            
-            // Автоматическая съёмка если оба обнаружены
-            if (qrFound && circlesFound) {
-              autoCaptureTriggerRef.current++;
-              
-              // Автоматически фотографируем после 5 последовательных обнаружений (примерно 1 секунда)
-              if (autoCaptureTriggerRef.current >= 5) {
-                setAutoCapturing(true);
-                setTimeout(() => {
-                  capturePhoto(true);
-                }, 500); // Небольшая задержка для стабилизации
-              }
-            } else {
-              autoCaptureTriggerRef.current = 0;
-            }
-          }
-        }
-      }
-    }, 200); // Проверяем каждые 200мс
-  };
-
-  const stopDetection = () => {
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
-    autoCaptureTriggerRef.current = 0;
-  };
-
-  const capturePhoto = (isAuto = false) => {
-    if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
@@ -205,8 +111,10 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
           if (blob) {
             const file = new File([blob], `omr-${Date.now()}.jpg`, { type: 'image/jpeg' });
             onCapture(file);
+            stopCamera();
             onClose();
           }
+          setCapturing(false);
         }, 'image/jpeg', 0.95);
       }
     }
@@ -214,96 +122,92 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
 
   if (!isOpen) return null;
 
-  const isFullyDetected = qrDetected && circlesDetected;
-  const borderColor = isFullyDetected ? 'border-green-500' : qrDetected || circlesDetected ? 'border-yellow-500' : 'border-red-500';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div className="relative w-full h-full max-w-4xl max-h-screen bg-gray-900">
+    <div className="fixed inset-0 z-50 bg-black">
+      <div className="relative w-full h-full flex flex-col">
         {/* Верхняя панель управления */}
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={switchCamera}
-            className="bg-gray-800 hover:bg-gray-700"
-            title="Переключить камеру"
-          >
-            <RotateCw className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={toggleFlash}
-            className={`bg-gray-800 hover:bg-gray-700 ${flashEnabled ? 'text-yellow-400' : ''}`}
-            title={flashEnabled ? 'Выключить вспышку' : 'Включить вспышку'}
-          >
-            {flashEnabled ? <Zap className="h-5 w-5" /> : <ZapOff className="h-5 w-5" />}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onClose}
-            className="bg-gray-800 hover:bg-gray-700"
-            title="Закрыть"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* Индикатор статуса обнаружения */}
-        <div className="absolute top-4 left-4 z-10 bg-gray-800 bg-opacity-90 rounded-lg p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${qrDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-white text-sm">QR-код</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${circlesDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-white text-sm">Кружки</span>
-          </div>
-          {autoCapturing && (
-            <div className="text-green-400 text-sm font-semibold animate-pulse">
-              Автосъёмка...
+        <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/70 to-transparent p-4">
+          <div className="flex items-center justify-between max-w-4xl mx-auto">
+            <h2 className="text-white font-semibold text-lg">Rasm olish</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={switchCamera}
+                className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                title="Kamerani almashtirish"
+              >
+                <RotateCw className="h-5 w-5" />
+              </button>
+              <button
+                onClick={toggleFlash}
+                className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
+                  flashEnabled 
+                    ? 'bg-yellow-500/80 text-white hover:bg-yellow-500' 
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title={flashEnabled ? 'Chiroqni o\'chirish' : 'Chiroqni yoqish'}
+              >
+                {flashEnabled ? <Zap className="h-5 w-5" /> : <ZapOff className="h-5 w-5" />}
+              </button>
+              <button
+                onClick={onClose}
+                className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                title="Yopish"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Видео с подсветкой */}
-        <div className={`relative w-full h-full flex items-center justify-center border-8 ${borderColor} transition-colors duration-300`}>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-contain"
-          />
-          
-          {/* Зелёная подсветка при полном обнаружении */}
-          {isFullyDetected && (
-            <div className="absolute inset-0 border-8 border-green-500 animate-pulse pointer-events-none"></div>
-          )}
-        </div>
-
-        {/* Кнопка ручной съёмки */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2">
-          {isFullyDetected && !autoCapturing && (
-            <div className="text-green-400 text-sm font-semibold bg-gray-800 bg-opacity-90 px-4 py-2 rounded-full">
-              Готово к съёмке!
+        {/* Видео */}
+        <div className="flex-1 flex items-center justify-center bg-black relative">
+          {error ? (
+            <div className="text-center p-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
+                <X className="w-8 h-8 text-red-500" />
+              </div>
+              <p className="text-white text-sm mb-4">{error}</p>
+              <button
+                onClick={startCamera}
+                className="px-6 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Qayta urinish
+              </button>
             </div>
+          ) : (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-contain"
+            />
           )}
-          <Button
-            onClick={() => capturePhoto(false)}
-            size="lg"
-            disabled={autoCapturing}
-            className={`rounded-full w-16 h-16 ${isFullyDetected ? 'bg-green-500 hover:bg-green-600' : 'bg-white hover:bg-gray-200'} text-gray-900 disabled:opacity-50`}
-            title="Сфотографировать"
-          >
-            <Camera className="h-8 w-8" />
-          </Button>
         </div>
 
-        {/* Скрытые canvas для обработки */}
+        {/* Нижняя панель с кнопкой съёмки */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/70 to-transparent p-6">
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-white/80 text-sm text-center">
+              Javob varag'ini ramkaga joylashtiring
+            </p>
+            <button
+              onClick={capturePhoto}
+              disabled={capturing}
+              className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Suratga olish"
+            >
+              {capturing ? (
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
+              ) : (
+                <Camera className="h-10 w-10 text-gray-900" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Скрытый canvas для обработки */}
         <canvas ref={canvasRef} className="hidden" />
-        <canvas ref={overlayCanvasRef} className="hidden" />
       </div>
     </div>
   );

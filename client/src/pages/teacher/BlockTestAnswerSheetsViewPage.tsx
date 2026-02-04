@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -37,8 +37,6 @@ export default function BlockTestAnswerSheetsViewPage() {
         return t.classNumber === testData.classNumber && tDate === testDate;
       });
       
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
-      
       // Объединяем все предметы из всех тестов
       const allSubjects: any[] = [];
       sameGroupTests.forEach((test: any) => {
@@ -51,8 +49,6 @@ export default function BlockTestAnswerSheetsViewPage() {
           }
         });
       });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
       
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {
@@ -67,80 +63,73 @@ export default function BlockTestAnswerSheetsViewPage() {
         params: { classNumber: mergedBlockTest.classNumber }
       });
       
-      console.log('👥 Total students in class:', allStudents.length);
-      console.log('🎯 Selected student IDs:', studentIds);
-      
       const selectedStudents = studentIds.length > 0
         ? allStudents.filter((s: any) => studentIds.includes(s._id))
         : allStudents;
-      
-      console.log('✅ Students to generate sheets for:', selectedStudents.length);
       
       // Убираем дубликаты по ID
       const uniqueStudents = Array.from(
         new Map(selectedStudents.map((s: any) => [s._id, s])).values()
       );
+
+      // ОПТИМИЗАЦИЯ: Загружаем все конфиги и варианты одним запросом
+      const studentIdsArray = uniqueStudents.map((s: any) => s._id);
       
-      console.log('🔍 Unique students after deduplication:', uniqueStudents.length);
+      const [configsResponse, variantsResponse] = await Promise.all([
+        Promise.all(studentIdsArray.map(sid => 
+          api.get(`/student-test-configs/${sid}`).catch(() => ({ data: null }))
+        )),
+        api.get('/student-variants', {
+          params: { testId: id }
+        }).catch(() => ({ data: [] }))
+      ]);
+
+      const configs = configsResponse.map(r => r.data);
+      const allVariants = variantsResponse.data;
 
       const sheets: any[] = [];
 
-      for (const student of uniqueStudents) {
-        try {
-          const { data: config } = await api.get(`/student-test-configs/${(student as any)._id}`);
-          
-          // Получаем variant для этого студента и теста
-          const { data: variants } = await api.get('/student-variants', {
-            params: {
-              studentId: (student as any)._id,
-              testId: id
-            }
-          });
-          
-          const variant = variants.find((v: any) => 
-            v.studentId === (student as any)._id && v.testId === id
+      for (let i = 0; i < uniqueStudents.length; i++) {
+        const student = uniqueStudents[i];
+        const config = configs[i];
+        
+        if (!config) continue;
+        
+        const variant = allVariants.find((v: any) => 
+          v.studentId === (student as any)._id || v.studentId?._id === (student as any)._id
+        );
+        
+        // Собираем вопросы для этого ученика
+        const questions: any[] = [];
+        let questionNumber = 1;
+
+        for (const subjectConfig of config.subjects) {
+          const subjectId = subjectConfig.subjectId._id || subjectConfig.subjectId;
+          const subjectTest = mergedBlockTest.subjectTests.find(
+            (st: any) => (st.subjectId._id || st.subjectId) === subjectId
           );
-          
-          // Собираем вопросы для этого ученика
-          const questions: any[] = [];
-          let questionNumber = 1;
 
-          for (const subjectConfig of config.subjects) {
-            const subjectId = subjectConfig.subjectId._id || subjectConfig.subjectId;
-            const subjectTest = mergedBlockTest.subjectTests.find(
-              (st: any) => (st.subjectId._id || st.subjectId) === subjectId
-            );
-
-            if (subjectTest && subjectTest.questions) {
-              const subjectQuestions = subjectTest.questions
-                .slice(0, subjectConfig.questionCount)
-                .map((q: any) => ({
-                  number: questionNumber++,
-                  subjectName: subjectConfig.subjectId.nameUzb,
-                  points: q.points || 1
-                }));
-              
-              questions.push(...subjectQuestions);
-            }
+          if (subjectTest && subjectTest.questions) {
+            const subjectQuestions = subjectTest.questions
+              .slice(0, subjectConfig.questionCount)
+              .map((q: any) => ({
+                number: questionNumber++,
+                subjectName: subjectConfig.subjectId.nameUzb,
+                points: q.points || 1
+              }));
+            
+            questions.push(...subjectQuestions);
           }
-
-          sheets.push({
-            student,
-            questions,
-            variantCode: variant?.variantCode || `${(student as any)._id.slice(-8)}`.toUpperCase()
-          });
-        } catch (err) {
-          console.error(`Error loading sheet for ${(student as any)._id}:`, err);
         }
+
+        sheets.push({
+          student,
+          questions,
+          variantCode: variant?.variantCode || `${(student as any)._id.slice(-8)}`.toUpperCase()
+        });
       }
 
       setStudentSheets(sheets);
-      console.log('📄 Total sheets generated:', sheets.length);
-      console.log('📋 Sheet details:', sheets.map(s => ({
-        name: s.student.fullName,
-        questions: s.questions.length,
-        variant: s.variantCode
-      })));
     } catch (err: any) {
       console.error('Error loading data:', err);
       alert('Ma\'lumotlarni yuklashda xatolik');
@@ -153,8 +142,11 @@ export default function BlockTestAnswerSheetsViewPage() {
     window.print();
   };
 
-  const filteredSheets = studentSheets.filter(item =>
-    item.student.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSheets = useMemo(() => 
+    studentSheets.filter(item =>
+      item.student.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [studentSheets, searchQuery]
   );
 
   if (loading) {
@@ -248,6 +240,14 @@ export default function BlockTestAnswerSheetsViewPage() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+          }
+        }
+        
+        @media screen {
+          .page-break {
+            transform: translateZ(0);
+            will-change: transform;
+            contain: layout style paint;
           }
         }
       `}</style>

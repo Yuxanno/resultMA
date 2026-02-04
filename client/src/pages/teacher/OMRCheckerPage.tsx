@@ -62,7 +62,6 @@ export default function OMRCheckerPage() {
       return;
     }
     
-    // Rasmni asl holatida saqlash (oq-qora formatga o'tkazmaslik)
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   };
@@ -72,52 +71,6 @@ export default function OMRCheckerPage() {
     setPreviewUrl(URL.createObjectURL(file));
     setIsCameraOpen(false);
     toast('Rasm muvaffaqiyatli olindi', 'success');
-  };
-
-  const convertToBlackAndWhite = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        // Canvas yaratish
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        // Rasmni chizish
-        ctx.drawImage(img, 0, 0);
-
-        // Piksellarni olish
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        // Oq-qora formatga o'tkazish (grayscale)
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          data[i] = avg;     // Red
-          data[i + 1] = avg; // Green
-          data[i + 2] = avg; // Blue
-        }
-
-        // Yangilangan piksellarni qaytarish
-        ctx.putImageData(imageData, 0, 0);
-
-        // Canvas dan Blob yaratish
-        canvas.toBlob((blob) => {
-          if (!blob) return;
-          
-          // Yangi File yaratish
-          const bwFile = new File([blob], file.name, { type: 'image/jpeg' });
-          setSelectedFile(bwFile);
-          setPreviewUrl(URL.createObjectURL(bwFile));
-        }, 'image/jpeg', 0.95);
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -132,7 +85,6 @@ export default function OMRCheckerPage() {
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
-      // Rasmni asl holatida saqlash
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
@@ -188,6 +140,41 @@ export default function OMRCheckerPage() {
     setEditedAnswers(prev => ({ ...prev, [questionNum]: answer }));
   };
 
+  // Динамический пересчет статистики с учетом отредактированных ответов
+  const getUpdatedComparison = () => {
+    if (!result?.comparison) return null;
+    
+    const details = result.comparison.details;
+    let correct = 0;
+    let incorrect = 0;
+    let unanswered = 0;
+    
+    details.forEach((detail: any) => {
+      const currentAnswer = editedAnswers[detail.question] || detail.student_answer;
+      
+      if (!currentAnswer || currentAnswer === '-') {
+        unanswered++;
+      } else if (currentAnswer === detail.correct_answer) {
+        correct++;
+      } else {
+        incorrect++;
+      }
+    });
+    
+    const total = details.length;
+    const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+    
+    return {
+      correct,
+      incorrect,
+      unanswered,
+      total,
+      score
+    };
+  };
+
+  const updatedComparison = getUpdatedComparison();
+
   const handleSave = async () => {
     if (!result?.qr_code?.testId || !result?.comparison) {
       return toast('Test topilmadi', 'error');
@@ -195,12 +182,22 @@ export default function OMRCheckerPage() {
     setSaving(true);
     try {
       const finalAnswers = { ...result.detected_answers, ...editedAnswers };
+      
+      // Используем обновленную статистику
+      const finalComparison = updatedComparison || result.comparison;
+      
       await api.post('/omr/save-result', {
         variantCode: result.qr_code.variantCode,
         studentId: result.qr_code.studentId,
         testId: result.qr_code.testId,
         detectedAnswers: finalAnswers,
-        comparison: result.comparison,
+        comparison: {
+          ...result.comparison,
+          correct: finalComparison.correct,
+          incorrect: finalComparison.incorrect,
+          unanswered: finalComparison.unanswered,
+          score: finalComparison.score
+        },
         annotatedImage: result.annotated_image,
         originalImagePath: result.uploaded_image
       });
@@ -237,39 +234,39 @@ export default function OMRCheckerPage() {
         onCapture={handleCameraCapture}
       />
       
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-5">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Camera className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
+                <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">OMR Skaner</h1>
-                <p className="text-xs text-gray-500">Javob varaqalarini tekshirish</p>
+                <h1 className="text-base sm:text-lg font-bold text-gray-900">OMR Skaner</h1>
+                <p className="text-xs text-gray-500 hidden sm:block">Javob varaqalarini tekshirish</p>
               </div>
             </div>
             
             {/* Step Indicator */}
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-                step === 'upload' ? 'bg-blue-50 text-blue-600' : 'text-gray-400'
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg transition-colors ${
+                step === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'
               }`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-                  step === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  step === 'upload' ? 'bg-white/20' : 'bg-white'
                 }`}>1</div>
-                <span className="text-xs font-medium hidden sm:inline">Yuklash</span>
+                <span className="text-xs font-semibold hidden sm:inline">Yuklash</span>
               </div>
-              <div className="w-6 h-px bg-gray-200" />
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-                step === 'review' ? 'bg-blue-50 text-blue-600' : 'text-gray-400'
+              <div className="w-3 sm:w-4 h-0.5 bg-gray-200" />
+              <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg transition-colors ${
+                step === 'review' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'
               }`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-                  step === 'review' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  step === 'review' ? 'bg-white/20' : 'bg-white'
                 }`}>2</div>
-                <span className="text-xs font-medium hidden sm:inline">Natija</span>
+                <span className="text-xs font-semibold hidden sm:inline">Natija</span>
               </div>
             </div>
           </div>
@@ -278,44 +275,45 @@ export default function OMRCheckerPage() {
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <Card className="border shadow-sm">
-            <div className="p-4 sm:p-6 lg:p-8">
+        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="p-4 sm:p-8">
               {!previewUrl ? (
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-lg p-16 text-center cursor-pointer transition-colors ${
+                  className={`border-2 border-dashed rounded-2xl p-6 sm:p-12 text-center cursor-pointer transition-all ${
                     isDragging 
-                      ? 'border-blue-400 bg-blue-50' 
-                      : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
+                      ? 'border-blue-500 bg-blue-50 scale-[1.02]' 
+                      : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
                   }`}
                 >
-                  <div className={`w-20 h-20 mx-auto mb-4 rounded-lg flex items-center justify-center ${
+                  <div className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-5 rounded-2xl flex items-center justify-center transition-all ${
                     isDragging 
-                      ? 'bg-blue-600' 
-                      : 'bg-gray-200'
+                      ? 'bg-blue-600 scale-110' 
+                      : 'bg-gradient-to-br from-gray-100 to-gray-200'
                   }`}>
-                    <Upload className={`w-10 h-10 ${isDragging ? 'text-white' : 'text-gray-400'}`} />
+                    <Upload className={`w-8 h-8 sm:w-10 sm:h-10 ${isDragging ? 'text-white' : 'text-gray-500'}`} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900 mb-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
                     Javob varag'ini yuklang
-                  </p>
-                  <p className="text-sm text-gray-500 mb-4">
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                     Rasmni bu yerga sudrab tashlang yoki bosing
                   </p>
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <span className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs text-gray-600">JPG</span>
-                    <span className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs text-gray-600">PNG</span>
+                  <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6 flex-wrap">
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border-2 border-gray-200 rounded-xl text-xs font-semibold text-gray-700">JPG</span>
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border-2 border-gray-200 rounded-xl text-xs font-semibold text-gray-700">PNG</span>
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border-2 border-gray-200 rounded-xl text-xs font-semibold text-gray-700">JPEG</span>
                   </div>
                   
                   {/* Camera Button */}
-                  <div className="flex items-center justify-center gap-3 mt-6">
-                    <div className="h-px flex-1 bg-gray-200"></div>
-                    <span className="text-xs text-gray-500 font-medium">yoki</span>
-                    <div className="h-px flex-1 bg-gray-200"></div>
+                  <div className="flex items-center justify-center gap-3 sm:gap-4 my-4 sm:my-6">
+                    <div className="h-px flex-1 bg-gray-300"></div>
+                    <span className="text-xs sm:text-sm text-gray-500 font-semibold">yoki</span>
+                    <div className="h-px flex-1 bg-gray-300"></div>
                   </div>
                   
                   <button
@@ -323,9 +321,9 @@ export default function OMRCheckerPage() {
                       e.stopPropagation();
                       setIsCameraOpen(true);
                     }}
-                    className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium flex items-center gap-2 mx-auto"
+                    className="mt-2 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base"
                   >
-                    <Camera className="w-5 h-5" />
+                    <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
                     Kamera orqali suratga olish
                   </button>
                   
@@ -338,49 +336,45 @@ export default function OMRCheckerPage() {
                   />
                 </div>
               ) : (
-                <div className="space-y-5">
-                  <div className="rounded-lg overflow-hidden border border-gray-200 relative">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="rounded-xl overflow-hidden border-2 border-gray-200 relative bg-gray-50">
                     <img 
                       src={previewUrl} 
                       alt="Preview" 
-                      className="w-full h-auto max-h-[350px] object-contain bg-gray-50" 
+                      className="w-full h-auto max-h-[300px] sm:max-h-[400px] object-contain" 
                     />
-                    <div className="absolute top-3 right-3 bg-gray-800 text-white px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      Oq-qora formatga o'tkazildi
-                    </div>
                   </div>
                   
                   {/* Progress bar during scanning */}
                   {checking && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 font-medium">Tahlil qilinmoqda...</span>
-                        <span className="text-blue-600 font-bold">{Math.round(scanProgress)}%</span>
+                    <div className="space-y-3 bg-blue-50 p-3 sm:p-4 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-gray-700 font-semibold">Tahlil qilinmoqda...</span>
+                        <span className="text-base sm:text-lg text-blue-600 font-bold">{Math.round(scanProgress)}%</span>
                       </div>
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-2.5 sm:h-3 bg-white rounded-full overflow-hidden shadow-inner">
                         <div 
-                          className="h-full bg-blue-600 transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-blue-600 to-blue-500 transition-all duration-300 rounded-full"
                           style={{ width: `${scanProgress}%` }}
                         />
                       </div>
                     </div>
                   )}
                   
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button 
                       onClick={handleScan} 
                       disabled={checking} 
-                      className="flex-1 h-12 bg-blue-600 hover:bg-blue-700"
+                      className="flex-1 h-12 sm:h-14 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-sm sm:text-base font-semibold shadow-lg"
                     >
                       {checking ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                          <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent mr-2" />
                           Tahlil qilinmoqda...
                         </>
                       ) : (
                         <>
-                          <Scan className="w-4 h-4 mr-2" />
+                          <Scan className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           Skanerlash
                         </>
                       )}
@@ -388,7 +382,7 @@ export default function OMRCheckerPage() {
                     <Button 
                       onClick={resetAll} 
                       variant="outline" 
-                      className="h-12 px-6 hover:bg-gray-50"
+                      className="h-12 sm:h-14 px-6 sm:px-8 hover:bg-gray-100 border-2 font-semibold text-sm sm:text-base"
                     >
                       Bekor qilish
                     </Button>
@@ -402,59 +396,50 @@ export default function OMRCheckerPage() {
 
       {/* Step 2: Review & Edit */}
       {step === 'review' && result && (
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="space-y-5">
-            {/* Student Info Card - Enhanced */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+          <div className="space-y-4 sm:space-y-5">
+            {/* Student Info Card - Compact */}
             {result.qr_found && result.qr_code && (
               <Card className="border-0 shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                          <CheckCircle className="w-6 h-6 text-white" />
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
-                        <div>
-                          <p className="text-xs text-blue-100 font-medium">QR-kod muvaffaqiyatli o'qildi</p>
-                          <p className="text-xs text-blue-200">Variant: {result.qr_code.variantCode}</p>
+                        <div className="min-w-0">
+                          <p className="text-xs text-blue-100 font-medium">QR-kod o'qildi</p>
+                          <p className="text-xs text-blue-200 truncate">Variant: {result.qr_code.variantCode}</p>
                         </div>
                       </div>
                       
-                      <div className="space-y-3">
+                      <div className="space-y-2 sm:space-y-3">
                         {/* Student Name */}
-                        <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                          <p className="text-xs text-blue-100 mb-1">O'quvchi</p>
-                          <p className="text-lg font-bold text-white">{result.qr_code.studentName}</p>
+                        <div className="bg-white/10 rounded-lg p-2.5 sm:p-3 backdrop-blur-sm">
+                          <p className="text-xs text-blue-100 mb-0.5 sm:mb-1">O'quvchi</p>
+                          <p className="text-base sm:text-lg font-bold text-white truncate">{result.qr_code.studentName}</p>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
-                          {/* Test Name or Date */}
-                          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                            <p className="text-xs text-blue-100 mb-1">
-                              {result.qr_code.testName.includes('/') ? 'Test sanasi' : 'Test nomi'}
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                          {/* Test Name */}
+                          <div className="bg-white/10 rounded-lg p-2.5 sm:p-3 backdrop-blur-sm">
+                            <p className="text-xs text-blue-100 mb-0.5 sm:mb-1">
+                              {result.qr_code.testName.includes('/') ? 'Sana' : 'Test'}
                             </p>
-                            <p className="text-sm font-semibold text-white truncate">
+                            <p className="text-xs sm:text-sm font-semibold text-white truncate">
                               {result.qr_code.testName}
                             </p>
                           </div>
                           
                           {/* Variant Code */}
-                          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-                            <p className="text-xs text-blue-100 mb-1">Variant kodi</p>
-                            <p className="text-xl font-bold text-white tracking-wider">
+                          <div className="bg-white/10 rounded-lg p-2.5 sm:p-3 backdrop-blur-sm">
+                            <p className="text-xs text-blue-100 mb-0.5 sm:mb-1">Variant</p>
+                            <p className="text-base sm:text-xl font-bold text-white tracking-wider truncate">
                               {result.qr_code.variantCode}
                             </p>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* QR Icon */}
-                    <div className="ml-4">
-                      <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg">
-                        <svg className="w-10 h-10 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm-2 8h8v8H3v-8zm2 2v4h4v-4H5zm8-12v8h8V3h-8zm6 6h-4V5h4v4zm-6 4h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm2-2h2v2h-2v-2z"/>
-                        </svg>
                       </div>
                     </div>
                   </div>
@@ -465,15 +450,15 @@ export default function OMRCheckerPage() {
             {/* Warning if QR not found */}
             {!result.qr_found && (
               <Card className="border-0 shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                      <XCircle className="w-7 h-7 text-white" />
+                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-4 sm:p-6">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <XCircle className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white mb-1">QR-kod topilmadi</h3>
-                      <p className="text-sm text-white/90">
-                        Javob varag'ida QR-kod aniqlanmadi. Natijalarni qo'lda kiritishingiz kerak bo'ladi.
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-1">QR-kod topilmadi</h3>
+                      <p className="text-xs sm:text-sm text-white/90">
+                        Javob varag'ida QR-kod aniqlanmadi. Natijalarni qo'lda kiritishingiz kerak.
                       </p>
                     </div>
                   </div>
@@ -482,34 +467,34 @@ export default function OMRCheckerPage() {
             )}
 
             {/* Stats Grid */}
-            {result.comparison && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {result.comparison && updatedComparison && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <Card className="border shadow-sm">
-                  <div className="bg-blue-50 p-5 text-center">
-                    <div className="text-4xl font-bold text-blue-600 mb-1">
-                      {result.comparison.score.toFixed(0)}%
+                  <div className="bg-blue-50 p-3 sm:p-5 text-center">
+                    <div className="text-3xl sm:text-4xl font-bold text-blue-600 mb-1">
+                      {updatedComparison.score.toFixed(0)}%
                     </div>
-                    <p className="text-xs font-medium text-gray-600">Umumiy ball</p>
+                    <p className="text-xs font-medium text-gray-600">Ball</p>
                   </div>
                 </Card>
                 
                 <Card className="border shadow-sm">
-                  <div className="bg-green-50 p-5 text-center">
-                    <div className="text-3xl font-bold text-green-600 mb-1">{result.comparison.correct}</div>
+                  <div className="bg-green-50 p-3 sm:p-5 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-1">{updatedComparison.correct}</div>
                     <p className="text-xs font-medium text-gray-600">To'g'ri</p>
                   </div>
                 </Card>
                 
                 <Card className="border shadow-sm">
-                  <div className="bg-red-50 p-5 text-center">
-                    <div className="text-3xl font-bold text-red-600 mb-1">{result.comparison.incorrect}</div>
+                  <div className="bg-red-50 p-3 sm:p-5 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-red-600 mb-1">{updatedComparison.incorrect}</div>
                     <p className="text-xs font-medium text-gray-600">Noto'g'ri</p>
                   </div>
                 </Card>
                 
                 <Card className="border shadow-sm">
-                  <div className="bg-gray-50 p-5 text-center">
-                    <div className="text-3xl font-bold text-gray-600 mb-1">{result.comparison.unanswered}</div>
+                  <div className="bg-gray-50 p-3 sm:p-5 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-gray-600 mb-1">{updatedComparison.unanswered}</div>
                     <p className="text-xs font-medium text-gray-600">Javobsiz</p>
                   </div>
                 </Card>
@@ -519,19 +504,19 @@ export default function OMRCheckerPage() {
             {/* Edit Answers Section */}
             {result.comparison && (
               <Card className="border-0 shadow-lg overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 rounded-lg flex items-center justify-center">
                         <Edit2 className="w-4 h-4 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-base font-semibold text-gray-900">Javoblarni tahrirlash</h2>
-                        <p className="text-xs text-gray-500">Noto'g'ri javoblarni tuzating</p>
+                        <h2 className="text-sm sm:text-base font-semibold text-gray-900">Javoblarni tahrirlash</h2>
+                        <p className="text-xs text-gray-500 hidden sm:block">Noto'g'ri javoblarni tuzating</p>
                       </div>
                     </div>
                     {Object.keys(editedAnswers).length > 0 && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 rounded-lg">
+                      <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-blue-100 rounded-lg">
                         <span className="text-xs font-semibold text-blue-700">
                           {Object.keys(editedAnswers).length} tahrirlandi
                         </span>
@@ -540,16 +525,10 @@ export default function OMRCheckerPage() {
                   </div>
                 </div>
                 
-                <div className="p-6 bg-white">
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {/* Barcha savollarni ko'rsatish */}
+                <div className="p-3 sm:p-6 bg-white">
+                  <div className="space-y-2 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
                     {(() => {
-                      // Backend allaqachon to'g'ri qiymatni hisoblagan
                       const totalQuestions = result.comparison.total;
-                      
-                      console.log('📊 Frontend: Total questions:', totalQuestions);
-                      console.log('📊 Frontend: QR found:', result.qr_found);
-                      console.log('📊 Frontend: Details count:', result.comparison.details.length);
                       
                       return Array.from({ length: totalQuestions }, (_, index) => {
                         const questionNum = index + 1;
@@ -567,7 +546,7 @@ export default function OMRCheckerPage() {
                         return (
                           <div
                             key={questionNum}
-                            className={`flex items-center gap-4 p-3 rounded-lg border ${
+                            className={`flex items-center gap-2 sm:gap-4 p-2 sm:p-3 rounded-lg border ${
                               isEdited 
                                 ? 'bg-blue-50 border-blue-300' :
                               isCorrect 
@@ -578,31 +557,31 @@ export default function OMRCheckerPage() {
                             }`}
                           >
                             {/* Question Number */}
-                            <div className="flex-shrink-0 w-12">
-                              <span className="text-sm font-bold text-gray-800">{questionNum})</span>
+                            <div className="flex-shrink-0 w-8 sm:w-12">
+                              <span className="text-xs sm:text-sm font-bold text-gray-800">{questionNum})</span>
                             </div>
                             
                             {/* Answer Display */}
-                            <div className="flex-1 flex items-center gap-2">
-                              <span className={`text-base font-bold ${
+                            <div className="flex-1 flex items-center gap-1.5 sm:gap-2 min-w-0">
+                              <span className={`text-sm sm:text-base font-bold ${
                                 currentAnswer === '-' ? 'text-gray-400' :
                                 isCorrect ? 'text-green-700' : 'text-red-700'
                               }`}>
                                 {currentAnswer}
                               </span>
                               <span className="text-gray-400">/</span>
-                              <span className="text-sm font-semibold text-gray-600">
+                              <span className="text-xs sm:text-sm font-semibold text-gray-600">
                                 {detail.correct_answer}
                               </span>
                             </div>
                             
                             {/* Edit Buttons */}
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-1 sm:gap-1.5 flex-shrink-0">
                               {['A', 'B', 'C', 'D'].map((option) => (
                                 <button
                                   key={option}
                                   onClick={() => handleEditAnswer(questionNum, option)}
-                                  className={`w-10 h-10 text-sm font-bold rounded-md transition-colors ${
+                                  className={`w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm font-bold rounded-md transition-colors ${
                                     currentAnswer === option
                                       ? 'bg-blue-600 text-white'
                                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
@@ -611,18 +590,6 @@ export default function OMRCheckerPage() {
                                   {option}
                                 </button>
                               ))}
-                              {/* Clear button */}
-                              <button
-                                onClick={() => {
-                                  const newEdited = { ...editedAnswers };
-                                  delete newEdited[questionNum];
-                                  setEditedAnswers(newEdited);
-                                }}
-                                className="w-10 h-10 text-sm font-bold rounded-md bg-white text-gray-500 border border-gray-300 hover:bg-gray-100"
-                                title="Tozalash"
-                              >
-                                <XCircle className="w-4 h-4 mx-auto" />
-                              </button>
                             </div>
                           </div>
                         );
@@ -636,9 +603,9 @@ export default function OMRCheckerPage() {
             {/* Annotated Image */}
             {getAnnotatedImageUrl() && (
               <Card className="border shadow-sm">
-                <div className="p-5">
+                <div className="p-3 sm:p-5">
                   <div className="rounded-lg overflow-hidden border border-gray-200">
-                    <img src={getAnnotatedImageUrl()!} alt="Result" className="w-full h-auto max-h-[400px] object-contain bg-gray-50" />
+                    <img src={getAnnotatedImageUrl()!} alt="Result" className="w-full h-auto max-h-[300px] sm:max-h-[400px] object-contain bg-gray-50" />
                   </div>
                 </div>
               </Card>
@@ -649,7 +616,7 @@ export default function OMRCheckerPage() {
               <Button 
                 onClick={resetAll} 
                 variant="outline" 
-                className="h-12 px-6"
+                className="h-11 sm:h-12 px-4 sm:px-6 text-sm sm:text-base"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Orqaga
@@ -657,7 +624,7 @@ export default function OMRCheckerPage() {
               <Button 
                 onClick={handleSave} 
                 disabled={saving} 
-                className="flex-1 h-12 bg-green-600 hover:bg-green-700"
+                className="flex-1 h-11 sm:h-12 bg-green-600 hover:bg-green-700 text-sm sm:text-base"
               >
                 {saving ? (
                   <>

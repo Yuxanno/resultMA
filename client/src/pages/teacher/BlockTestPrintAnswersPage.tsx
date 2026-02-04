@@ -46,8 +46,6 @@ export default function BlockTestPrintAnswersPage() {
         return t.classNumber === testData.classNumber && tDate === testDate;
       });
       
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
-      
       // Объединяем все предметы из всех тестов
       const allSubjects: any[] = [];
       sameGroupTests.forEach((test: any) => {
@@ -60,8 +58,6 @@ export default function BlockTestPrintAnswersPage() {
           }
         });
       });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
       
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {
@@ -76,22 +72,14 @@ export default function BlockTestPrintAnswersPage() {
         params: { classNumber: mergedBlockTest.classNumber }
       });
       
-      console.log('👥 Total students in class:', allStudents.length);
-      console.log('🎯 Selected student IDs from URL:', studentIds);
-      console.log('🎯 Unique student IDs:', [...new Set(studentIds)]);
-      
       const selectedStudents = allStudents.filter((s: any) => 
         studentIds.includes(s._id)
       );
-      
-      console.log('✅ Filtered students:', selectedStudents.length);
       
       // Убираем дубликаты
       const uniqueStudents = Array.from(
         new Map(selectedStudents.map((s: any) => [s._id, s])).values()
       );
-      
-      console.log('🔍 Unique students after deduplication:', uniqueStudents.length);
       
       const variants: StudentVariant[] = [];
       
@@ -100,14 +88,25 @@ export default function BlockTestPrintAnswersPage() {
       try {
         const { data: variantsData } = await api.get(`/student-variants/block-test/${id}`);
         allVariants = variantsData;
-        console.log('📦 Total variants loaded:', allVariants.length);
       } catch (err) {
         console.error('Error loading variants:', err);
       }
       
-      for (const student of uniqueStudents) {
+      // ОПТИМИЗАЦИЯ: Загружаем все конфиги параллельно
+      const configsPromises = uniqueStudents.map((student: any) => 
+        api.get(`/student-test-configs/${student._id}`).catch(() => ({ data: null }))
+      );
+      
+      const configsResponses = await Promise.all(configsPromises);
+      
+      for (let i = 0; i < uniqueStudents.length; i++) {
+        const student = uniqueStudents[i];
+        const configResponse = configsResponses[i];
+        
+        if (!configResponse.data) continue;
+        
         try {
-          const { data: config } = await api.get(`/student-test-configs/${(student as any)._id}`);
+          const config = configResponse.data;
           
           // Find variant for this student
           const studentVariant = allVariants.find((v: any) => 
@@ -160,7 +159,7 @@ export default function BlockTestPrintAnswersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white print-view-mode">
+    <div className="min-h-screen bg-white print-view-mode" style={{ backgroundColor: '#ffffff' }}>
       <div className="print:hidden fixed top-4 right-4 z-50 flex gap-2">
         <Button variant="outline" onClick={() => setShowSettings(!showSettings)}>
           <Settings className="w-5 h-5 mr-2" />
@@ -289,28 +288,36 @@ export default function BlockTestPrintAnswersPage() {
               height: '297mm',
               margin: '0 auto',
               position: 'relative',
-              padding: '2mm'
+              padding: sheetsPerPage === 1 ? '5mm' : '2mm',
+              backgroundColor: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
-              <div className={`h-full ${
-                sheetsPerPage === 2 ? 'flex flex-col' : 
-                sheetsPerPage === 4 ? 'grid grid-cols-2 grid-rows-2' : 
+              <div className={`${
+                sheetsPerPage === 2 ? 'flex flex-col gap-1' : 
+                sheetsPerPage === 4 ? 'grid grid-cols-2 gap-1' : 
                 ''
-              }`} style={{ gap: sheetsPerPage > 1 ? '1mm' : '0' }}>
+              }`} style={{ 
+                width: '100%',
+                height: '100%',
+                gap: sheetsPerPage > 1 ? '2mm' : '0'
+              }}>
                 {variantsOnPage.map((variant, idx) => (
                   <div 
                     key={variant.student._id}
                     style={{
                       width: '100%',
-                      height: sheetsPerPage === 2 ? 'calc(50% - 0.5mm)' : sheetsPerPage === 4 ? '100%' : '100%',
+                      height: sheetsPerPage === 2 ? 'calc(50% - 1mm)' : sheetsPerPage === 4 ? 'calc(50% - 1mm)' : '100%',
                       overflow: 'hidden',
-                      position: 'relative'
+                      position: 'relative',
+                      border: sheetsPerPage > 1 ? '1px dashed #ccc' : 'none'
                     }}
                   >
                     <div style={{
-                      transform: sheetsPerPage === 2 ? 'scale(0.96)' : sheetsPerPage === 4 ? 'scale(0.96)' : 'scale(1)',
+                      transform: sheetsPerPage === 2 ? 'scale(0.485)' : sheetsPerPage === 4 ? 'scale(0.485)' : 'scale(0.98)',
                       transformOrigin: 'top left',
-                      width: sheetsPerPage === 2 ? '104%' : sheetsPerPage === 4 ? '104%' : '100%',
-                      height: sheetsPerPage === 2 ? '104%' : sheetsPerPage === 4 ? '104%' : '100%'
+                      width: sheetsPerPage === 2 ? '206%' : sheetsPerPage === 4 ? '206%' : '102%',
+                      height: sheetsPerPage === 2 ? '206%' : sheetsPerPage === 4 ? '206%' : '102%'
                     }}>
                       <AnswerSheet
                         student={{
@@ -347,6 +354,7 @@ export default function BlockTestPrintAnswersPage() {
             padding: 0 !important;
             height: auto !important;
             overflow: visible !important;
+            background: white !important;
           }
           
           .page-break {
@@ -354,6 +362,7 @@ export default function BlockTestPrintAnswersPage() {
             page-break-inside: avoid;
             break-after: page;
             break-inside: avoid;
+            background: white !important;
           }
           
           .page-break:last-child {
@@ -370,6 +379,7 @@ export default function BlockTestPrintAnswersPage() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background: white !important;
           }
           
           /* Убираем сайдбар и навигацию */
@@ -388,6 +398,11 @@ export default function BlockTestPrintAnswersPage() {
           margin: 0 !important;
           padding: 0 !important;
           max-width: 100% !important;
+        }
+        
+        /* Убираем цветной фон */
+        .print-view-mode {
+          background: white !important;
         }
       `}</style>
     </div>

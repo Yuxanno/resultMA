@@ -1,0 +1,52 @@
+/* Clean & Functional Design System */
+
+/* Remove excessive animations and effects */
+.clean-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.clean-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Simple button styles */
+.clean-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.clean-btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.clean-btn-primary:hover {
+  background: #2563eb;
+}
+
+/* Compact stats */
+.clean-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+/* Remove gradients and blur effects */
+.no-gradient {
+  background: white !important;
+  backdrop-filter: none !important;
+}
+
+/* Simplified spacing */
+.clean-spacing {
+  padding: 1rem;
+  gap: 1rem;
+}
