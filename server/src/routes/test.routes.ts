@@ -129,6 +129,40 @@ router.post('/:id/generate-variants', authenticate, async (req, res) => {
       const variantCode = uuidv4().substring(0, 8).toUpperCase();
       const questionOrder = shuffleArray([...Array(test.questions.length).keys()]);
       
+      // Перемешиваем ответы для каждого вопроса
+      const shuffledQuestions = questionOrder.map((qIndex) => {
+        const originalQuestion = test.questions[qIndex] as any;
+        
+        // Проверяем наличие variants и correctAnswer
+        if (!originalQuestion.variants || !originalQuestion.correctAnswer) {
+          return {
+            ...originalQuestion,
+            originalQuestionIndex: qIndex
+          };
+        }
+        
+        // Создаем массив индексов ответов [0, 1, 2, 3, ...]
+        const answerIndices = [...Array(originalQuestion.variants.length).keys()];
+        
+        // Перемешиваем индексы
+        const shuffledAnswerIndices = shuffleArray(answerIndices);
+        
+        // Создаем новый массив ответов в перемешанном порядке
+        const shuffledVariants = shuffledAnswerIndices.map(idx => originalQuestion.variants[idx]);
+        
+        // Находим новую позицию правильного ответа
+        const originalCorrectIndex = originalQuestion.correctAnswer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+        const newCorrectIndex = shuffledAnswerIndices.indexOf(originalCorrectIndex);
+        const newCorrectAnswer = String.fromCharCode(65 + newCorrectIndex); // 0=A, 1=B, 2=C, 3=D
+        
+        return {
+          ...originalQuestion,
+          variants: shuffledVariants,
+          correctAnswer: newCorrectAnswer,
+          originalQuestionIndex: qIndex
+        };
+      });
+      
       // Simple QR payload - just variant code (easy to scan)
       // Full data can be retrieved via API using this code
       const qrPayload = variantCode;
@@ -138,7 +172,8 @@ router.post('/:id/generate-variants', authenticate, async (req, res) => {
         studentId: sg.studentId._id,
         variantCode,
         qrPayload,
-        questionOrder
+        questionOrder,
+        shuffledQuestions
       });
       
       await variant.save();

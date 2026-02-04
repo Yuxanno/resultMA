@@ -168,52 +168,102 @@ export default function TestVariantsPage() {
               {expandedVariant === variant._id && (
                 <CardContent className="p-6">
                   <div className="space-y-4">
-                    {variant.questionOrder?.map((originalIndex: number, newIndex: number) => {
-                      const question = test.questions[originalIndex];
-                      if (!question) return null;
-                      
-                      return (
-                        <div key={newIndex} className="border-b pb-4 last:border-b-0">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                              {newIndex + 1}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-gray-900 font-medium mb-3">
-                                <MathText text={question.text} />
+                    {variant.shuffledQuestions && variant.shuffledQuestions.length > 0 ? (
+                      // Используем shuffledQuestions если они есть (с перемешанными ответами)
+                      variant.shuffledQuestions.map((question: any, newIndex: number) => {
+                        if (!question) return null;
+                        
+                        return (
+                          <div key={newIndex} className="border-b pb-4 last:border-b-0">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                                {newIndex + 1}
                               </div>
-                              
-                              {question.variants && question.variants.length > 0 && (
-                                <div className="space-y-2 ml-2">
-                                  {question.variants.map((qVariant: any, vIndex: number) => (
-                                    <div
-                                      key={vIndex}
-                                      className={`p-3 rounded-lg border ${
-                                        qVariant.letter === question.correctAnswer
-                                          ? 'bg-green-50 border-green-300'
-                                          : 'bg-white border-gray-200'
-                                      }`}
-                                    >
-                                      <div className="flex items-start gap-2">
-                                        <span className="font-bold text-gray-700 min-w-[28px]">
-                                          {qVariant.letter})
-                                        </span>
-                                        <span className={`flex-1 ${qVariant.letter === question.correctAnswer ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
-                                          <MathText text={qVariant.text} />
-                                        </span>
-                                        {qVariant.letter === question.correctAnswer && (
-                                          <span className="text-green-600 font-bold">✓</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
+                              <div className="flex-1">
+                                <div className="text-gray-900 font-medium mb-3">
+                                  <MathText text={question.text} />
                                 </div>
-                              )}
+                                
+                                {question.variants && question.variants.length > 0 && (
+                                  <div className="space-y-2 ml-2">
+                                    {question.variants.map((qVariant: any, vIndex: number) => (
+                                      <div
+                                        key={vIndex}
+                                        className={`p-3 rounded-lg border ${
+                                          qVariant.letter === question.correctAnswer
+                                            ? 'bg-green-50 border-green-300'
+                                            : 'bg-white border-gray-200'
+                                        }`}
+                                      >
+                                        <div className="flex items-start gap-2">
+                                          <span className="font-bold text-gray-700 min-w-[28px]">
+                                            {qVariant.letter})
+                                          </span>
+                                          <span className={`flex-1 ${qVariant.letter === question.correctAnswer ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                                            <MathText text={qVariant.text} />
+                                          </span>
+                                          {qVariant.letter === question.correctAnswer && (
+                                            <span className="text-green-600 font-bold">✓</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    ) : (
+                      // Fallback: используем questionOrder если shuffledQuestions нет
+                      variant.questionOrder?.map((originalIndex: number, newIndex: number) => {
+                        const question = test.questions[originalIndex];
+                        if (!question) return null;
+                        
+                        return (
+                          <div key={newIndex} className="border-b pb-4 last:border-b-0">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                                {newIndex + 1}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-gray-900 font-medium mb-3">
+                                  <MathText text={question.text} />
+                                </div>
+                                
+                                {question.variants && question.variants.length > 0 && (
+                                  <div className="space-y-2 ml-2">
+                                    {question.variants.map((qVariant: any, vIndex: number) => (
+                                      <div
+                                        key={vIndex}
+                                        className={`p-3 rounded-lg border ${
+                                          qVariant.letter === question.correctAnswer
+                                            ? 'bg-green-50 border-green-300'
+                                            : 'bg-white border-gray-200'
+                                        }`}
+                                      >
+                                        <div className="flex items-start gap-2">
+                                          <span className="font-bold text-gray-700 min-w-[28px]">
+                                            {qVariant.letter})
+                                          </span>
+                                          <span className={`flex-1 ${qVariant.letter === question.correctAnswer ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                                            <MathText text={qVariant.text} />
+                                          </span>
+                                          {qVariant.letter === question.correctAnswer && (
+                                            <span className="text-green-600 font-bold">✓</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </CardContent>
               )}

@@ -15,6 +15,7 @@ export default function TestPrintPage() {
   const [selectedStudents, setSelectedStudents] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
   const [columnsCount, setColumnsCount] = useState(2);
+  const [testsPerPage, setTestsPerPage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -76,66 +77,87 @@ export default function TestPrintPage() {
       return <div className="text-center text-gray-500 py-12">O'quvchilar tanlanmagan</div>;
     }
 
+    // Группируем студентов по страницам
+    const pages = [];
+    for (let i = 0; i < selectedStudents.length; i += testsPerPage) {
+      pages.push(selectedStudents.slice(i, i + testsPerPage));
+    }
+
     return (
       <div>
-        {selectedStudents.map((student, studentIndex) => {
-          const variant = variants.find(v => v.studentId?._id === student._id);
-          const variantCode = variant?.variantCode || '';
-          
-          return (
-            <div key={student._id} className="page-break mb-8">
-              {/* Header */}
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-xl font-bold">{student.fullName}</h2>
-                  <p className="text-sm">Variant: {variantCode}</p>
-                  <p className="text-sm">{test.subjectId?.nameUzb || test.subjectId || 'Test'} {test.classNumber || 10}{test.groupId?.nameUzb?.charAt(0) || 'A'}</p>
-                </div>
-                <div className="flex-shrink-0">
-                  <QRCodeSVG 
-                    value={variantCode}
-                    size={100}
-                    level="H"
-                    includeMargin={false}
-                    style={{ margin: 0 }}
-                  />
-                </div>
-              </div>
-
-              <hr className="border-t-2 border-gray-800 mb-4" />
-
-              {/* Questions */}
-              <div className="space-y-4">
-                {test.questions?.map((question: any, index: number) => (
-                  <div key={index} className="page-break-inside-avoid">
-                    <div className="mb-1">
-                      <span className="font-bold">{index + 1}. </span>
-                      <MathText text={question.text} />
-                    </div>
-                    {question.imageUrl && (
-                      <div className="my-2 ml-6">
-                        <img 
-                          src={question.imageUrl} 
-                          alt="Question" 
-                          className="max-w-full h-auto"
-                          style={{ maxHeight: '200px', objectFit: 'contain' }}
+        {pages.map((studentsOnPage, pageIndex) => (
+          <div key={pageIndex} className="page-break mb-8">
+            <div className={`grid gap-6 ${testsPerPage === 2 ? 'grid-cols-2' : testsPerPage === 4 ? 'grid-cols-2' : ''}`}>
+              {studentsOnPage.map((student, studentIndex) => {
+                const variant = variants.find(v => v.studentId?._id === student._id);
+                const variantCode = variant?.variantCode || '';
+                
+                // Используем shuffledQuestions если они есть, иначе оригинальные вопросы
+                const questionsToRender = variant?.shuffledQuestions && variant.shuffledQuestions.length > 0
+                  ? variant.shuffledQuestions
+                  : test.questions;
+                
+                return (
+                  <div key={student._id} className={testsPerPage > 1 ? 'border-2 border-gray-300 p-3' : ''}>
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className={testsPerPage > 1 ? 'text-sm' : ''}>
+                        <h2 className={`font-bold ${testsPerPage > 1 ? 'text-base' : 'text-xl'}`}>{student.fullName}</h2>
+                        <p className="text-xs">Variant: {variantCode}</p>
+                        <p className="text-xs">{test.subjectId?.nameUzb || test.subjectId || 'Test'} {test.classNumber || 10}{test.groupId?.nameUzb?.charAt(0) || 'A'}</p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <QRCodeSVG 
+                          value={variantCode}
+                          size={testsPerPage > 1 ? 60 : 100}
+                          level="H"
+                          includeMargin={false}
+                          style={{ margin: 0 }}
                         />
                       </div>
-                    )}
-                    <div className="ml-6">
-                      {question.variants?.map((qVariant: any) => (
-                        <div key={qVariant.letter} className="mb-1">
-                          <span className="font-semibold">{qVariant.letter}) </span>
-                          <MathText text={qVariant.text} />
+                    </div>
+
+                    <hr className="border-t-2 border-gray-800 mb-3" />
+
+                    {/* Questions */}
+                    <div className={testsPerPage > 1 ? 'space-y-2' : 'space-y-4'}>
+                      {questionsToRender?.map((question: any, index: number) => (
+                        <div key={index} className="page-break-inside-avoid">
+                          <div className="mb-1">
+                            <span className={`font-bold ${testsPerPage > 1 ? 'text-xs' : ''}`}>{index + 1}. </span>
+                            <span className={testsPerPage > 1 ? 'text-xs' : ''}>
+                              <MathText text={question.text} />
+                            </span>
+                          </div>
+                          {question.imageUrl && testsPerPage === 1 && (
+                            <div className="my-2 ml-6">
+                              <img 
+                                src={question.imageUrl} 
+                                alt="Question" 
+                                className="max-w-full h-auto"
+                                style={{ maxHeight: '200px', objectFit: 'contain' }}
+                              />
+                            </div>
+                          )}
+                          <div className={testsPerPage > 1 ? 'ml-3' : 'ml-6'}>
+                            {question.variants?.map((qVariant: any) => (
+                              <div key={qVariant.letter} className="mb-0.5">
+                                <span className={`font-semibold ${testsPerPage > 1 ? 'text-xs' : ''}`}>{qVariant.letter}) </span>
+                                <span className={testsPerPage > 1 ? 'text-xs' : ''}>
+                                  <MathText text={qVariant.text} />
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     );
   };
@@ -150,6 +172,11 @@ export default function TestPrintPage() {
         {selectedStudents.map((student, studentIndex) => {
           const variant = variants.find(v => v.studentId?._id === student._id);
           const variantCode = variant?.variantCode || '';
+          
+          // Используем shuffledQuestions если они есть, иначе оригинальные вопросы
+          const questionsToRender = variant?.shuffledQuestions && variant.shuffledQuestions.length > 0
+            ? variant.shuffledQuestions
+            : test.questions;
           
           return (
             <div key={student._id} className="page-break mb-8">
@@ -173,7 +200,7 @@ export default function TestPrintPage() {
               <hr className="border-t-2 border-gray-800 mb-4" />
 
               <div>
-                {test.questions?.map((question: any, index: number) => (
+                {questionsToRender?.map((question: any, index: number) => (
                   <div key={index} className="mb-1">
                     <span className="font-bold">{index + 1}. </span>
                     <span className="font-bold text-blue-600">{question.correctAnswer}</span>
@@ -307,7 +334,7 @@ export default function TestPrintPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Orqaga
           </Button>
-          {type === 'sheets' && (
+          {(type === 'sheets' || type === 'questions') && (
             <Button variant="outline" onClick={() => setShowSettings(!showSettings)}>
               <Settings className="w-4 h-4 mr-2" />
               Sozlamalar
@@ -320,40 +347,87 @@ export default function TestPrintPage() {
         </div>
 
         {/* Settings Panel */}
-        {showSettings && type === 'sheets' && (
+        {showSettings && (type === 'sheets' || type === 'questions') && (
           <div className="no-print fixed top-20 right-4 z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 w-72">
             <h3 className="font-bold text-lg mb-4">Chop etish sozlamalari</h3>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Ustunlar soni
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setColumnsCount(2)}
-                  className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                    columnsCount === 2
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                  }`}
-                >
-                  2 ustun
-                </button>
-                <button
-                  onClick={() => setColumnsCount(3)}
-                  className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                    columnsCount === 3
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                  }`}
-                >
-                  3 ustun
-                </button>
+            {type === 'questions' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
+                  Bir sahifada testlar soni
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setTestsPerPage(1)}
+                    className={`py-2 px-3 rounded border-2 font-medium transition-colors text-sm ${
+                      testsPerPage === 1
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    1 test
+                  </button>
+                  <button
+                    onClick={() => setTestsPerPage(2)}
+                    className={`py-2 px-3 rounded border-2 font-medium transition-colors text-sm ${
+                      testsPerPage === 2
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    2 test
+                  </button>
+                  <button
+                    onClick={() => setTestsPerPage(4)}
+                    className={`py-2 px-3 rounded border-2 font-medium transition-colors text-sm ${
+                      testsPerPage === 4
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    4 test
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {testsPerPage === 1 && 'Katta shrift, rasmlar bilan'}
+                  {testsPerPage === 2 && 'O\'rtacha shrift, 2 ustunda'}
+                  {testsPerPage === 4 && 'Kichik shrift, 2x2 grid'}
+                </p>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                {columnsCount === 2 ? '60 tagacha savol uchun qulay' : '60 dan ortiq savol uchun qulay'}
-              </p>
-            </div>
+            )}
+            
+            {type === 'sheets' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
+                  Ustunlar soni
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setColumnsCount(2)}
+                    className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
+                      columnsCount === 2
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    2 ustun
+                  </button>
+                  <button
+                    onClick={() => setColumnsCount(3)}
+                    className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
+                      columnsCount === 3
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    3 ustun
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {columnsCount === 2 ? '60 tagacha savol uchun qulay' : '60 dan ortiq savol uchun qulay'}
+                </p>
+              </div>
+            )}
 
             <button
               onClick={() => setShowSettings(false)}

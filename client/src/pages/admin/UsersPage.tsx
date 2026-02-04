@@ -206,7 +206,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-4 sm:space-y-6 pb-16 sm:pb-20">
       {/* Navbar */}
       <PageNavbar
         title="Foydalanuvchilar"
@@ -344,11 +344,11 @@ export default function UsersPage() {
               onChange={(value) => setFormData({ ...formData, phone: value })}
             />
 
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" loading={loading} className="w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
+              <Button type="submit" loading={loading} fullWidth className="sm:flex-1">
                 {editingUser ? 'Yangilash' : 'Saqlash'}
               </Button>
-              <Button type="button" variant="outline" onClick={handleCloseForm} className="w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={handleCloseForm} fullWidth className="sm:flex-1">
                 Bekor qilish
               </Button>
             </div>
@@ -374,10 +374,10 @@ export default function UsersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {users.map((user) => (
             <Card key={user._id} className="card-hover">
-              <CardContent className="p-5">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-11 h-11 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg">

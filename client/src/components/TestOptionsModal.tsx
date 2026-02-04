@@ -10,6 +10,7 @@ interface TestOptionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   test: any;
+  onRefresh?: () => void;
 }
 
 type PrintType = 'questions' | 'answers' | 'sheets' | 'all' | null;
@@ -18,6 +19,7 @@ export default function TestOptionsModal({
   isOpen,
   onClose,
   test,
+  onRefresh,
 }: TestOptionsModalProps) {
   const navigate = useNavigate();
   const [variantCount, setVariantCount] = useState(0);
@@ -157,11 +159,11 @@ export default function TestOptionsModal({
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
+                <Eye className="w-6 h-6 text-white" />
               </div>
               <div className="text-left">
-                <h3 className="font-bold text-gray-900">Original savollar</h3>
-                <p className="text-sm text-gray-600">Aralashtirilmagan asl tartibda</p>
+                <h3 className="font-bold text-gray-900">Javob kalitlari</h3>
+                <p className="text-sm text-gray-600">Har bir variant uchun to'g'ri javoblar</p>
               </div>
             </div>
             <Eye className="w-5 h-5 text-orange-600" />
@@ -174,17 +176,31 @@ export default function TestOptionsModal({
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                <Shuffle className="w-6 h-6 text-white" />
+                <FileText className="w-6 h-6 text-white" />
               </div>
               <div className="text-left">
-                <h3 className="font-bold text-gray-900">Aralashtirilgan variantlar</h3>
-                <p className="text-sm text-gray-600">Har bir o'quvchi uchun noyob tartib</p>
+                <h3 className="font-bold text-gray-900">Savollar bilan testlar</h3>
+                <p className="text-sm text-gray-600">Har bir o'quvchi uchun savollar va javoblar</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5 text-purple-600" />
-              <Shuffle className="w-5 h-5 text-purple-600" />
+            <Eye className="w-5 h-5 text-purple-600" />
+          </button>
+
+          {/* Answer Sheets */}
+          <button
+            onClick={handlePrintAnswers}
+            className="w-full flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-bold text-gray-900">Bo'sh javob varaqlari</h3>
+                <p className="text-sm text-gray-600">O'quvchilar to'ldirishi uchun bo'sh varaqalar</p>
+              </div>
             </div>
+            <Eye className="w-5 h-5 text-green-600" />
           </button>
 
           {/* Print Options */}
@@ -198,11 +214,11 @@ export default function TestOptionsModal({
               >
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                   <div className="text-left min-w-0">
-                    <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">Savollar chop etish</p>
-                    <p className="text-xs text-gray-600 hidden sm:block">Har bir variant uchun savollar va javoblar</p>
+                    <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">Savollar va javoblar</p>
+                    <p className="text-xs text-gray-600 hidden sm:block">Har bir o'quvchi uchun test varaqasi</p>
                   </div>
                 </div>
                 <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
@@ -210,18 +226,18 @@ export default function TestOptionsModal({
               {/* Print Variants */}
               <button
                 onClick={handlePrintSheets}
-                className="w-full flex items-center justify-between p-2 sm:p-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors"
+                className="w-full flex items-center justify-between p-2 sm:p-3 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors"
               >
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                   <div className="text-left min-w-0">
-                    <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">Varaqasini chop etish</p>
-                    <p className="text-xs text-gray-600 hidden sm:block">O'quvchilar uchun javob varaqasi</p>
+                    <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">Bo'sh javob varaqlari</p>
+                    <p className="text-xs text-gray-600 hidden sm:block">O'quvchilar to'ldirishi uchun</p>
                   </div>
                 </div>
-                <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
+                <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
               </button>
 
               {/* Print All */}
@@ -234,8 +250,8 @@ export default function TestOptionsModal({
                     <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                   <div className="text-left min-w-0">
-                    <p className="font-semibold text-xs sm:text-sm truncate">Hammasini chop etish</p>
-                    <p className="text-xs opacity-90 hidden sm:block">Savollar, javoblar va varaqalar</p>
+                    <p className="font-semibold text-xs sm:text-sm truncate">Hammasi</p>
+                    <p className="text-xs opacity-90 hidden sm:block">Savollar, javoblar va bo'sh varaqalar</p>
                   </div>
                 </div>
                 <Printer className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -254,10 +270,10 @@ export default function TestOptionsModal({
             </Button>
             <Button
               onClick={handleRegenerateVariants}
-              className="w-full sm:flex-1"
+              className="w-full sm:flex-1 bg-purple-600 hover:bg-purple-700"
             >
               <Shuffle className="w-4 h-4 mr-2" />
-              Qayta yaratish
+              Aralashtirib berish
             </Button>
           </div>
         </div>

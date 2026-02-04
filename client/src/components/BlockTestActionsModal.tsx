@@ -68,8 +68,8 @@ export default function BlockTestActionsModal({
                     <Eye className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">To'g'ri javoblar</h3>
-                    <p className="text-sm text-gray-600">Barcha o'quvchilarning to'g'ri javoblari</p>
+                    <h3 className="font-bold text-gray-900">Javob kalitlari</h3>
+                    <p className="text-sm text-gray-600">Har bir variant uchun to'g'ri javoblar</p>
                   </div>
                 </div>
                 <Eye className="w-5 h-5 text-orange-600" />
@@ -87,8 +87,8 @@ export default function BlockTestActionsModal({
                     <FileText className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">Barcha testlar</h3>
-                    <p className="text-sm text-gray-600">Barcha o'quvchilarning testlari</p>
+                    <h3 className="font-bold text-gray-900">Savollar bilan testlar</h3>
+                    <p className="text-sm text-gray-600">Har bir o'quvchi uchun savollar va javoblar</p>
                   </div>
                 </div>
                 <Eye className="w-5 h-5 text-purple-600" />
@@ -106,8 +106,8 @@ export default function BlockTestActionsModal({
                     <FileText className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">Javob varaqlari</h3>
-                    <p className="text-sm text-gray-600">O'quvchilar uchun javob varaqlari</p>
+                    <h3 className="font-bold text-gray-900">Bo'sh javob varaqlari</h3>
+                    <p className="text-sm text-gray-600">O'quvchilar to'ldirishi uchun bo'sh varaqalar</p>
                   </div>
                 </div>
                 <Eye className="w-5 h-5 text-green-600" />
@@ -129,8 +129,8 @@ export default function BlockTestActionsModal({
                     <Printer className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">Savollar chop etish</p>
-                    <p className="text-xs text-gray-600">Har bir variant uchun savollar va javoblar</p>
+                    <p className="font-semibold text-gray-900">Savollar va javoblar</p>
+                    <p className="text-xs text-gray-600">Har bir o'quvchi uchun test varaqasi</p>
                   </div>
                 </div>
                 <Printer className="w-5 h-5 text-blue-600" />
@@ -146,8 +146,8 @@ export default function BlockTestActionsModal({
                     <FileText className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">Varaqasini chop etish</p>
-                    <p className="text-xs text-gray-600">O'quvchilar uchun javob varaqasi</p>
+                    <p className="font-semibold text-gray-900">Bo'sh javob varaqlari</p>
+                    <p className="text-xs text-gray-600">O'quvchilar to'ldirishi uchun</p>
                   </div>
                 </div>
                 <Printer className="w-5 h-5 text-green-600" />
@@ -163,8 +163,8 @@ export default function BlockTestActionsModal({
                     <Printer className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold">Hammasini chop etish</p>
-                    <p className="text-xs opacity-90">Savollar, javoblar va varaqalar</p>
+                    <p className="font-semibold">Hammasi</p>
+                    <p className="text-xs opacity-90">Savollar, javoblar va bo'sh varaqalar</p>
                   </div>
                 </div>
                 <Printer className="w-5 h-5" />

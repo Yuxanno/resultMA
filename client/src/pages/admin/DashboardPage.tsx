@@ -112,41 +112,41 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-8 p-6 bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 min-h-screen">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 min-h-screen">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded-lg w-48 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-64"></div>
+            <div className="h-6 sm:h-8 bg-gray-200 rounded-lg w-32 sm:w-48 mb-2"></div>
+            <div className="h-3 sm:h-4 bg-gray-200 rounded w-48 sm:w-64"></div>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div key={i} className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
               <div className="animate-pulse">
-                <div className="w-14 h-14 bg-gray-200 rounded-2xl mb-4"></div>
-                <div className="h-3 bg-gray-200 rounded w-20 mb-3"></div>
-                <div className="h-10 bg-gray-200 rounded w-16"></div>
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-200 rounded-xl sm:rounded-2xl mb-3 sm:mb-4"></div>
+                <div className="h-2.5 sm:h-3 bg-gray-200 rounded w-16 sm:w-20 mb-2 sm:mb-3"></div>
+                <div className="h-8 sm:h-10 bg-gray-200 rounded w-12 sm:w-16"></div>
               </div>
             </div>
           ))}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div key={i} className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
               <div className="animate-pulse">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-14 h-14 bg-gray-200 rounded-2xl"></div>
+                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-200 rounded-xl sm:rounded-2xl"></div>
                   <div className="flex-1">
-                    <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-16"></div>
+                    <div className="h-4 sm:h-5 bg-gray-200 rounded w-24 sm:w-32 mb-2"></div>
+                    <div className="h-2.5 sm:h-3 bg-gray-200 rounded w-12 sm:w-16"></div>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="h-20 bg-gray-200 rounded-xl"></div>
-                  <div className="h-20 bg-gray-200 rounded-xl"></div>
-                  <div className="h-20 bg-gray-200 rounded-xl"></div>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  <div className="h-16 sm:h-20 bg-gray-200 rounded-lg sm:rounded-xl"></div>
+                  <div className="h-16 sm:h-20 bg-gray-200 rounded-lg sm:rounded-xl"></div>
+                  <div className="h-16 sm:h-20 bg-gray-200 rounded-lg sm:rounded-xl"></div>
                 </div>
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 gradient-mesh min-h-screen">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-3 sm:p-4 lg:p-6 gradient-mesh min-h-screen">
       {/* Header */}
       <div className="animate-fade-in">
         <PageNavbar
@@ -172,7 +172,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 animate-slide-up">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 animate-slide-up">
         <StatsCard
           title="Filiallar"
           value={stats.totalBranches}
@@ -228,19 +228,20 @@ export default function DashboardPage() {
 
       {/* Branches List */}
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Building2 className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-blue-600" />
               Filiallar
             </h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">Barcha filiallar va ularning statistikasi</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">Barcha filiallar va ularning statistikasi</p>
           </div>
           <Button 
             variant="outline" 
             size="default" 
             onClick={() => navigate('/admin/statistics')}
             className="group w-full sm:w-auto"
+            fullWidth={false}
           >
             <span className="truncate">Batafsil statistika</span>
             <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform flex-shrink-0" />
@@ -248,7 +249,7 @@ export default function DashboardPage() {
         </div>
 
         {stats.branches.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             {stats.branches.map((branch, index) => (
               <div
                 key={branch._id}

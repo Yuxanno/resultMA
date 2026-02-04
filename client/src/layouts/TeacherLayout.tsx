@@ -27,6 +27,7 @@ const ImportTestPage = lazy(() => import('../pages/teacher/ImportTestPage'));
 const BlockTestsPage = lazy(() => import('../pages/teacher/BlockTestsPage'));
 const ImportBlockTestPage = lazy(() => import('../pages/teacher/ImportBlockTestPage'));
 const ConfigureBlockTestPage = lazy(() => import('../pages/teacher/ConfigureBlockTestPage'));
+const ConfigureTestPage = lazy(() => import('../pages/teacher/ConfigureTestPage'));
 const TeacherDashboardPage = lazy(() => import('../pages/teacher/TeacherDashboardPage'));
 const TestViewPage = lazy(() => import('../pages/teacher/TestViewPage'));
 const TestVariantsPage = lazy(() => import('../pages/teacher/TestVariantsPage'));
@@ -343,6 +344,7 @@ export default function TeacherLayout() {
               <Route path="/tests/import" element={<ImportTestPage />} />
               <Route path="/tests/edit/:id" element={<CreateTestPage />} />
               <Route path="/tests/:id/view" element={<TestViewPage />} />
+              <Route path="/tests/:id/configure" element={<ConfigureTestPage />} />
               <Route path="/tests/:id/variants" element={<TestVariantsPage />} />
               <Route path="/tests/:id/print/:type" element={<TestPrintPage />} />
               <Route path="/block-tests" element={<BlockTestsPage />} />

@@ -7,7 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    }
+    },
+    dedupe: ['react', 'react-dom']
   },
   server: {
     host: '0.0.0.0',
@@ -39,7 +40,7 @@ export default defineConfig({
       'framer-motion',
       '@tanstack/react-query',
     ],
-    exclude: ['@tiptap/react', '@tiptap/starter-kit'],
+    // Убрал exclude - не нужен
   },
   build: {
     target: 'es2015',

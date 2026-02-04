@@ -22,6 +22,7 @@ export default function BlockTestPrintAnswersPage() {
   const [blockTest, setBlockTest] = useState<any>(null);
   const [studentVariants, setStudentVariants] = useState<StudentVariant[]>([]);
   const [columnsCount, setColumnsCount] = useState(2);
+  const [sheetsPerPage, setSheetsPerPage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -177,34 +178,92 @@ export default function BlockTestPrintAnswersPage() {
           <h3 className="font-bold text-lg mb-4">Chop etish sozlamalari</h3>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">
+            <label className="block text-sm font-medium mb-3">
+              Sahifada varaqlar soni
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sheetsPerPage"
+                  value="1"
+                  checked={sheetsPerPage === 1}
+                  onChange={() => setSheetsPerPage(1)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="ml-3 flex-1">
+                  <span className="font-medium">1 varaq</span>
+                  <span className="block text-xs text-gray-500">Katta o'lcham, to'liq sahifa</span>
+                </span>
+              </label>
+              
+              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sheetsPerPage"
+                  value="2"
+                  checked={sheetsPerPage === 2}
+                  onChange={() => setSheetsPerPage(2)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="ml-3 flex-1">
+                  <span className="font-medium">2 varaq</span>
+                  <span className="block text-xs text-gray-500">O'rtacha o'lcham, vertikal</span>
+                </span>
+              </label>
+              
+              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sheetsPerPage"
+                  value="4"
+                  checked={sheetsPerPage === 4}
+                  onChange={() => setSheetsPerPage(4)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="ml-3 flex-1">
+                  <span className="font-medium">4 varaq</span>
+                  <span className="block text-xs text-gray-500">Kichik o'lcham, 2x2 grid</span>
+                </span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-3">
               Ustunlar soni
             </label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setColumnsCount(2)}
-                className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                  columnsCount === 2
-                    ? 'bg-blue-500 text-white border-blue-500'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                }`}
-              >
-                2 ustun
-              </button>
-              <button
-                onClick={() => setColumnsCount(3)}
-                className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                  columnsCount === 3
-                    ? 'bg-blue-500 text-white border-blue-500'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                }`}
-              >
-                3 ustun
-              </button>
+            <div className="space-y-2">
+              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="columnsCount"
+                  value="2"
+                  checked={columnsCount === 2}
+                  onChange={() => setColumnsCount(2)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="ml-3 flex-1">
+                  <span className="font-medium">2 ustun</span>
+                  <span className="block text-xs text-gray-500">60 tagacha savol uchun qulay</span>
+                </span>
+              </label>
+              
+              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="columnsCount"
+                  value="3"
+                  checked={columnsCount === 3}
+                  onChange={() => setColumnsCount(3)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="ml-3 flex-1">
+                  <span className="font-medium">3 ustun</span>
+                  <span className="block text-xs text-gray-500">60 dan ortiq savol uchun qulay</span>
+                </span>
+              </label>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              {columnsCount === 2 ? '60 tagacha savol uchun qulay' : '60 dan ortiq savol uchun qulay'}
-            </p>
           </div>
 
           <button
@@ -216,28 +275,65 @@ export default function BlockTestPrintAnswersPage() {
         </div>
       )}
 
-      <div className="space-y-8">
-        {studentVariants.map((variant) => {
-          return (
-            <div key={variant.student._id} className="page-break">
-              <AnswerSheet
-                student={{
-                  fullName: variant.student.fullName || `${variant.student.firstName} ${variant.student.lastName}`,
-                  variantCode: variant.variantCode
-                }}
-                test={{
-                  name: blockTest.name || 'Blok Test',
-                  subjectName: blockTest.subjectTests?.map((st: any) => st.subjectId?.nameUzb || st.subjectId).join(', ') || 'Fanlar',
-                  classNumber: blockTest.classNumber,
-                  groupLetter: variant.student.directionId?.nameUzb?.charAt(0) || 'A'
-                }}
-                questions={variant.questions.length}
-                qrData={variant.qrPayload}
-                columns={columnsCount}
-              />
+      <div>
+        {(() => {
+          // Группируем варианты по страницам
+          const pages = [];
+          for (let i = 0; i < studentVariants.length; i += sheetsPerPage) {
+            pages.push(studentVariants.slice(i, i + sheetsPerPage));
+          }
+          
+          return pages.map((variantsOnPage, pageIndex) => (
+            <div key={pageIndex} className="page-break" style={{ 
+              width: '210mm', 
+              height: '297mm',
+              margin: '0 auto',
+              position: 'relative',
+              padding: '2mm'
+            }}>
+              <div className={`h-full ${
+                sheetsPerPage === 2 ? 'flex flex-col' : 
+                sheetsPerPage === 4 ? 'grid grid-cols-2 grid-rows-2' : 
+                ''
+              }`} style={{ gap: sheetsPerPage > 1 ? '1mm' : '0' }}>
+                {variantsOnPage.map((variant, idx) => (
+                  <div 
+                    key={variant.student._id}
+                    style={{
+                      width: '100%',
+                      height: sheetsPerPage === 2 ? 'calc(50% - 0.5mm)' : sheetsPerPage === 4 ? '100%' : '100%',
+                      overflow: 'hidden',
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{
+                      transform: sheetsPerPage === 2 ? 'scale(0.96)' : sheetsPerPage === 4 ? 'scale(0.96)' : 'scale(1)',
+                      transformOrigin: 'top left',
+                      width: sheetsPerPage === 2 ? '104%' : sheetsPerPage === 4 ? '104%' : '100%',
+                      height: sheetsPerPage === 2 ? '104%' : sheetsPerPage === 4 ? '104%' : '100%'
+                    }}>
+                      <AnswerSheet
+                        student={{
+                          fullName: variant.student.fullName || `${variant.student.firstName} ${variant.student.lastName}`,
+                          variantCode: variant.variantCode
+                        }}
+                        test={{
+                          name: blockTest.name || 'Blok Test',
+                          subjectName: blockTest.subjectTests?.map((st: any) => st.subjectId?.nameUzb || st.subjectId).join(', ') || 'Fanlar',
+                          classNumber: blockTest.classNumber,
+                          groupLetter: variant.student.directionId?.nameUzb?.charAt(0) || 'A'
+                        }}
+                        questions={variant.questions.length}
+                        qrData={variant.qrPayload}
+                        columns={columnsCount}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          );
-        })}
+          ));
+        })()}
       </div>
 
       <style>{`

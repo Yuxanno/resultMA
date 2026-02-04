@@ -8,6 +8,38 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Batch endpoint GET - получить конфигурации для нескольких студентов
+router.get('/batch', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { studentIds } = req.query;
+    
+    if (!studentIds || typeof studentIds !== 'string') {
+      return res.status(400).json({ message: 'studentIds параметр керак' });
+    }
+    
+    const idsArray = studentIds.split(',').filter(id => id.trim());
+    
+    if (idsArray.length === 0) {
+      return res.json([]);
+    }
+    
+    // Ограничиваем до 1000 студентов за раз
+    const limitedIds = idsArray.slice(0, 1000);
+    
+    // Получаем все конфигурации одним запросом с populate
+    const configs = await StudentTestConfig.find({
+      studentId: { $in: limitedIds }
+    })
+      .populate('subjects.subjectId')
+      .lean();
+    
+    res.json(configs);
+  } catch (error: any) {
+    console.error('Batch config GET error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Batch endpoint - получить конфигурации для нескольких студентов
 router.post('/batch', authenticate, async (req: AuthRequest, res) => {
   try {

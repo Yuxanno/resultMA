@@ -299,9 +299,12 @@ export default function GroupConfigModal({
             <p className="text-sm text-gray-600 mt-1">
               Barcha {students.length} ta o'quvchi uchun
             </p>
-            <p className="text-xs text-blue-600 mt-1">
-              ⓘ Faqat mavjud fanlar uchun savollar soni yangilanadi. Fanlar qo'shilmaydi yoki o'chirilmaydi.
-            </p>
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-gray-700 flex items-start gap-2">
+                <span className="text-blue-600 font-bold flex-shrink-0">ⓘ</span>
+                <span>Faqat mavjud fanlar uchun savollar soni yangilanadi. Fanlar qo'shilmaydi yoki o'chirilmaydi.</span>
+              </p>
+            </div>
           </div>
         </div>
 

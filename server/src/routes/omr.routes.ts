@@ -731,22 +731,48 @@ router.post('/save-result', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/omr/results/:assignmentId
- * Получение результатов сканирования для задания
+ * GET /api/omr/results/:testId
+ * Получение результатов сканирования для теста
  */
-router.get('/results/:assignmentId', authenticate, async (req, res) => {
+router.get('/results/:testId', authenticate, async (req, res) => {
   try {
-    const { assignmentId } = req.params;
+    const { testId } = req.params;
 
-    // TODO: Получить результаты из базы данных
+    const TestResult = require('../models/TestResult').default;
+    
+    // Получаем все результаты для данного теста
+    const results = await TestResult.find({ testId })
+      .populate('studentId', 'fullName classNumber')
+      .populate('variantId', 'variantCode')
+      .sort({ scannedAt: -1 })
+      .lean();
+    
+    // Форматируем результаты
+    const formattedResults = results.map((result: any) => ({
+      id: result._id,
+      studentName: result.studentId?.fullName || 'Unknown',
+      classNumber: result.studentId?.classNumber,
+      variantCode: result.variantId?.variantCode,
+      totalPoints: result.totalPoints,
+      maxPoints: result.maxPoints,
+      percentage: result.percentage,
+      scannedAt: result.scannedAt,
+      scannedImagePath: result.scannedImagePath,
+      answersCount: result.answers?.length || 0
+    }));
     
     res.json({
       success: true,
-      results: []
+      count: formattedResults.length,
+      results: formattedResults
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка получения результатов:', error);
-    res.status(500).json({ error: 'Ошибка при получении результатов' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Ошибка при получении результатов',
+      details: error.message 
+    });
   }
 });
 
