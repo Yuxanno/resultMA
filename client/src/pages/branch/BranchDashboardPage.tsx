@@ -154,7 +154,7 @@ export default function BranchDashboardPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20 gradient-mesh min-h-screen p-6">
+    <div className="space-y-4 sm:space-y-6 pb-20 gradient-mesh min-h-screen p-2 sm:p-4 lg:p-6">
       <div className="animate-fade-in">
         <PageNavbar
           title="Bosh sahifa"
@@ -164,7 +164,7 @@ export default function BranchDashboardPage() {
       </div>
 
       {/* Main Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 animate-slide-up">
         <StatsCard
           title="Guruhlar"
           value={stats?.totalGroups || 0}
@@ -204,39 +204,37 @@ export default function BranchDashboardPage() {
 
       {/* Top Students Ranking */}
       <Card className="hover-lift glass-card animate-scale-in">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-                <Target className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-foreground">O'quvchilar Reytingi</h3>
-                <p className="text-sm text-muted-foreground">
-                  {stats?.topStudents && stats.topStudents.length > 0 
-                    ? `Top ${stats.topStudents.length} o'quvchi` 
-                    : 'Eng yaxshi natijalar'}
-                </p>
-              </div>
+        <CardContent className="p-3 sm:p-4 lg:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 gradient-primary rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <Target className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg lg:text-2xl font-bold text-foreground truncate">O'quvchilar Reytingi</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                {stats?.topStudents && stats.topStudents.length > 0 
+                  ? `Top ${stats.topStudents.length}` 
+                  : 'Natijalar'}
+              </p>
             </div>
           </div>
 
           {stats?.totalStudents === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <GraduationCap className="w-10 h-10 text-gray-400" />
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <GraduationCap className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
               </div>
-              <p className="text-gray-600">Hozircha o'quvchilar yo'q</p>
+              <p className="text-sm sm:text-base text-gray-600">Hozircha o'quvchilar yo'q</p>
             </div>
           ) : !stats?.topStudents || stats.topStudents.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <GraduationCap className="w-10 h-10 text-gray-400" />
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <GraduationCap className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
               </div>
-              <p className="text-gray-600">O'quvchilar yuklanmoqda...</p>
+              <p className="text-sm sm:text-base text-gray-600">O'quvchilar yuklanmoqda...</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {stats.topStudents.map((student, index) => {
                 const rank = student.rank;
                 const isTopThree = rank <= 3;
@@ -244,32 +242,32 @@ export default function BranchDashboardPage() {
                 return (
                   <div 
                     key={student._id}
-                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                    className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border transition-all ${
                       isTopThree 
-                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 hover:shadow-lg' 
-                        : 'bg-gradient-to-r from-gray-50 to-white border-gray-100 hover:shadow-md'
+                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' 
+                        : 'bg-white border-gray-100'
                     }`}
                   >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 ${
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md flex-shrink-0 ${
                       rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-yellow-500' :
                       rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400' :
                       rank === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-500' :
                       'bg-gradient-to-br from-blue-500 to-blue-600'
                     }`}>
-                      <span className="text-xl font-bold text-white">{rank}</span>
+                      <span className="text-base sm:text-lg font-bold text-white">{rank}</span>
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 truncate">{student.fullName}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm sm:text-base font-bold text-gray-900 truncate">{student.fullName}</p>
+                      <p className="text-xs text-gray-500 truncate">
                         {student.testsCompleted > 0 
-                          ? `${student.testsCompleted} ta test topshirgan` 
-                          : 'Hali test topshirmagan'}
+                          ? `${student.testsCompleted} test` 
+                          : 'Test yo\'q'}
                       </p>
                     </div>
                     
                     <div className="text-right flex-shrink-0">
-                      <p className={`text-2xl font-bold ${
+                      <p className={`text-lg sm:text-xl font-bold ${
                         student.averageScore >= 80 ? 'text-green-600' :
                         student.averageScore >= 60 ? 'text-blue-600' :
                         student.averageScore >= 40 ? 'text-orange-600' :
@@ -277,7 +275,6 @@ export default function BranchDashboardPage() {
                       }`}>
                         {student.averageScore}%
                       </p>
-                      <p className="text-xs text-gray-500">O'rtacha</p>
                     </div>
                   </div>
                 );

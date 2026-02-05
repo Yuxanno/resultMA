@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../models/User';
 import Branch from '../models/Branch';
 import Subject from '../models/Subject';
@@ -14,7 +14,7 @@ import mongoose from 'mongoose';
 const router = Router();
 
 // Get teacher dashboard statistics
-router.get('/teacher/dashboard', authenticate, async (req, res) => {
+router.get('/teacher/dashboard', authenticate, async (req: AuthRequest, res) => {
   try {
     const teacherId = req.user?.id;
     if (!teacherId) {
@@ -123,7 +123,7 @@ router.get('/teacher/dashboard', authenticate, async (req, res) => {
 });
 
 // Get overall statistics
-router.get('/', authenticate, authorize(UserRole.SUPER_ADMIN), async (req, res) => {
+router.get('/', authenticate, authorize(UserRole.SUPER_ADMIN), async (req: AuthRequest, res) => {
   try {
     // Use Promise.all to run all queries in parallel
     const [
