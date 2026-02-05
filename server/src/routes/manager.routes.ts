@@ -129,6 +129,35 @@ router.get('/students', authenticate, requirePermission('view_students'), async 
       filter.isGraduated = { $ne: true };
     }
     
+    // Фильтр по классу
+    const classNumber = req.query.classNumber as string;
+    if (classNumber) {
+      filter.classNumber = parseInt(classNumber);
+    }
+    
+    // Фильтр по предмету
+    const subjectId = req.query.subjectId as string;
+    if (subjectId) {
+      filter.subjectIds = subjectId;
+    }
+    
+    // Если передан groupId, фильтруем по группе
+    const groupId = req.query.groupId as string;
+    let studentIds: any[] | undefined;
+    
+    if (groupId) {
+      // Получаем студентов из StudentGroup
+      const studentGroups = await StudentGroup.find({ groupId }).select('studentId');
+      studentIds = studentGroups.map(sg => sg.studentId);
+      
+      if (studentIds.length === 0) {
+        // Если в группе нет студентов, возвращаем пустой массив
+        return res.json([]);
+      }
+      
+      filter._id = { $in: studentIds };
+    }
+    
     const students = await Student.find(filter)
       .populate('branchId')
       .populate('directionId')
@@ -138,15 +167,32 @@ router.get('/students', authenticate, requirePermission('view_students'), async 
     // Загружаем группы для каждого студента
     const studentsWithGroups = await Promise.all(students.map(async (student) => {
       const studentGroups = await StudentGroup.find({ studentId: student._id })
-        .populate('groupId')
-        .populate('subjectId');
+        .populate({
+          path: 'groupId',
+          select: 'name subjectId classNumber letter',
+          populate: {
+            path: 'subjectId',
+            select: 'nameUzb'
+          }
+        });
+      
+      // Фильтруем только валидные группы (где groupId не null)
+      const groups = studentGroups
+        .filter(sg => sg.groupId != null)
+        .map(sg => {
+          const group = sg.groupId as any;
+          return {
+            _id: group._id,
+            name: group.name,
+            subjectId: group.subjectId,
+            classNumber: group.classNumber,
+            letter: group.letter
+          };
+        });
       
       return {
         ...student.toObject(),
-        groups: studentGroups.map(sg => ({
-          groupId: sg.groupId._id,
-          subjectId: sg.subjectId._id
-        }))
+        groups
       };
     }));
     

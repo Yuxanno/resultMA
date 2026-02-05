@@ -125,6 +125,93 @@ router.get('/groups/:id', authenticate, requirePermission('view_groups'), async 
   }
 });
 
+// Получить студентов группы
+router.get('/groups/:id/students', authenticate, requirePermission('view_groups'), async (req: AuthRequest, res) => {
+  try {
+    const groupId = req.params.id;
+    console.log('Fetching students for group:', groupId);
+    
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      console.log('Group not found:', groupId);
+      return res.status(404).json({ message: 'Guruh topilmadi' });
+    }
+    
+    // Проверяем доступ к филиалу
+    if (req.user?.role !== 'SUPER_ADMIN' && group.branchId?.toString() !== req.user?.branchId?.toString()) {
+      console.log('Access denied for group:', groupId);
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Получаем всех студентов этой группы
+    const studentGroups = await StudentGroup.find({ groupId: groupId })
+      .populate({
+        path: 'studentId',
+        populate: [
+          { path: 'branchId' },
+          { path: 'directionId' },
+          { path: 'subjectIds' }
+        ]
+      })
+      .lean();
+    
+    console.log('Found student-group relations:', studentGroups.length);
+    
+    const students = studentGroups
+      .map(sg => sg.studentId)
+      .filter(student => student != null);
+    
+    // Получаем результаты тестов для каждого студента
+    const studentsWithStats = await Promise.all(
+      students.map(async (student: any) => {
+        const testResults = await TestResult.find({ studentId: student._id }).lean();
+        
+        let averagePercentage = 0;
+        if (testResults.length > 0) {
+          const totalPercentage = testResults.reduce((sum, result) => sum + (result.percentage || 0), 0);
+          averagePercentage = Math.round(totalPercentage / testResults.length);
+        }
+        
+        return {
+          ...student,
+          averagePercentage,
+          testsCompleted: testResults.length
+        };
+      })
+    );
+    
+    console.log('Returning students with stats:', studentsWithStats.length);
+    res.json(studentsWithStats);
+  } catch (error: any) {
+    console.error('Error fetching group students:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Получить все связи студент-группа
+router.get('/student-groups', authenticate, requirePermission('view_groups'), async (req: AuthRequest, res) => {
+  try {
+    const filter: any = {};
+    
+    // Если не Super Admin, фильтруем по филиалу через группу
+    if (req.user?.role !== 'SUPER_ADMIN') {
+      const groups = await Group.find({ branchId: req.user?.branchId }).select('_id');
+      const groupIds = groups.map(g => g._id);
+      filter.groupId = { $in: groupIds };
+    }
+    
+    const studentGroups = await StudentGroup.find(filter)
+      .populate('studentId')
+      .populate('groupId');
+    
+    res.json(studentGroups);
+  } catch (error: any) {
+    console.error('Error fetching student-groups:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // ============= СТУДЕНТЫ (только просмотр) =============
 
 // Получить всех студентов
@@ -142,6 +229,35 @@ router.get('/students', authenticate, requirePermission('view_students'), async 
       filter.isGraduated = { $ne: true };
     }
     
+    // Фильтр по классу
+    const classNumber = req.query.classNumber as string;
+    if (classNumber) {
+      filter.classNumber = parseInt(classNumber);
+    }
+    
+    // Фильтр по предмету
+    const subjectId = req.query.subjectId as string;
+    if (subjectId) {
+      filter.subjectIds = subjectId;
+    }
+    
+    // Если передан groupId, фильтруем по группе
+    const groupId = req.query.groupId as string;
+    let studentIds: any[] | undefined;
+    
+    if (groupId) {
+      // Получаем студентов из StudentGroup
+      const studentGroups = await StudentGroup.find({ groupId }).select('studentId');
+      studentIds = studentGroups.map(sg => sg.studentId);
+      
+      if (studentIds.length === 0) {
+        // Если в группе нет студентов, возвращаем пустой массив
+        return res.json([]);
+      }
+      
+      filter._id = { $in: studentIds };
+    }
+    
     const students = await Student.find(filter)
       .populate('branchId')
       .populate('directionId')
@@ -151,15 +267,29 @@ router.get('/students', authenticate, requirePermission('view_students'), async 
     // Загружаем группы для каждого студента
     const studentsWithGroups = await Promise.all(students.map(async (student) => {
       const studentGroups = await StudentGroup.find({ studentId: student._id })
-        .populate('groupId')
-        .populate('subjectId');
+        .populate({
+          path: 'groupId',
+          select: 'name subjectId classNumber letter',
+          populate: {
+            path: 'subjectId',
+            select: 'nameUzb'
+          }
+        });
       
       return {
         ...student.toObject(),
-        groups: studentGroups.map(sg => ({
-          groupId: sg.groupId._id,
-          subjectId: sg.subjectId._id
-        }))
+        groups: studentGroups
+          .filter(sg => sg.groupId != null)
+          .map(sg => {
+            const group = sg.groupId as any;
+            return {
+              _id: group._id,
+              name: group.name,
+              subjectId: group.subjectId,
+              classNumber: group.classNumber,
+              letter: group.letter
+            };
+          })
       };
     }));
     
@@ -358,7 +488,14 @@ router.get('/assignments', authenticate, requirePermission('view_tests'), async 
 // Получить результаты тестов
 router.get('/test-results', authenticate, requirePermission('view_tests'), async (req: AuthRequest, res) => {
   try {
-    const results = await TestResult.find()
+    const filter: any = {};
+    
+    // Если не Super Admin, показываем только данные своего филиала
+    if (req.user?.role !== 'SUPER_ADMIN' && req.user?.branchId) {
+      filter.branchId = req.user.branchId;
+    }
+    
+    const results = await TestResult.find(filter)
       .populate('studentId')
       .populate('testId')
       .sort({ createdAt: -1 });

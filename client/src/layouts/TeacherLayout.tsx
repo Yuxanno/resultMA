@@ -19,7 +19,6 @@ import { Loading } from '../components/ui/Loading';
 
 // Lazy load all teacher pages
 const MyGroupsPage = lazy(() => import('../pages/teacher/MyGroupsPage'));
-const MyStudentsPage = lazy(() => import('../pages/teacher/MyStudentsPage'));
 const GroupDetailPage = lazy(() => import('../pages/teacher/GroupDetailPage'));
 const TestsPage = lazy(() => import('../pages/teacher/TestsPage'));
 const CreateTestPage = lazy(() => import('../pages/teacher/CreateTestPage'));
@@ -334,7 +333,6 @@ export default function TeacherLayout() {
               <Route path="/dashboard" element={<TeacherDashboardPage />} />
               <Route path="/groups" element={<MyGroupsPage />} />
               <Route path="/groups/:id" element={<GroupDetailPage />} />
-              <Route path="/students" element={<MyStudentsPage />} />
               <Route path="/assignments" element={<AssignmentsPage />} />
               <Route path="/assignments/create" element={<CreateAssignmentPage />} />
               <Route path="/assignments/edit/:id" element={<CreateAssignmentPage />} />

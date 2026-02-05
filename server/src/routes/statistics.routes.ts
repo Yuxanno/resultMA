@@ -122,6 +122,77 @@ router.get('/teacher/dashboard', authenticate, async (req: AuthRequest, res) => 
   }
 });
 
+// Get branch dashboard statistics
+router.get('/branch/dashboard', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const branchId = req.user?.branchId;
+    if (!branchId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Get all students in the branch
+    const students = await Student.find({ branchId }).select('_id fullName').lean();
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({
+        topStudents: []
+      });
+    }
+
+    // Calculate average percentage for each student
+    const studentStats = await Promise.all(
+      studentIds.map(async (studentId) => {
+        const results = await TestResult.find({ studentId })
+          .select('percentage')
+          .lean();
+
+        const student = students.find(s => s._id.toString() === studentId.toString());
+
+        // Return student even if no test results
+        return {
+          _id: studentId,
+          fullName: student?.fullName || 'Unknown',
+          testsCompleted: results.length,
+          averageScore: results.length > 0 
+            ? Math.round((results.reduce((sum, r) => sum + r.percentage, 0) / results.length) * 10) / 10
+            : 0
+        };
+      })
+    );
+
+    // Sort by average score (descending), then by name (ascending)
+    const sortedStudents = studentStats.sort((a, b) => {
+      if (b.averageScore !== a.averageScore) {
+        return b.averageScore - a.averageScore;
+      }
+      return a.fullName.localeCompare(b.fullName);
+    });
+
+    // Assign ranks (same score = same rank)
+    const topStudents = sortedStudents.slice(0, 100).map((student, index, array) => {
+      let rank = index + 1;
+      
+      // Check if previous student has same score
+      if (index > 0 && array[index - 1].averageScore === student.averageScore) {
+        rank = (array[index - 1] as any).rank;
+      }
+      
+      return {
+        ...student,
+        rank
+      };
+    });
+
+    res.json({
+      topStudents
+    });
+  } catch (error: any) {
+    console.error('Error fetching branch dashboard statistics:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get overall statistics
 router.get('/', authenticate, authorize(UserRole.SUPER_ADMIN), async (req: AuthRequest, res) => {
   try {

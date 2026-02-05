@@ -80,6 +80,9 @@ function App() {
               <Navigate to="/teacher" />
             ) : <LandingPage />
           } />
+          
+          {/* Catch all - redirect to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

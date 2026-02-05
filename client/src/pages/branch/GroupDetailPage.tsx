@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import StudentProfileModal from '@/components/StudentProfileModal';
+import StudentQRCode from '@/components/StudentQRCode';
 import { 
   ArrowLeft, 
   Users, 
@@ -14,7 +15,9 @@ import {
   FileText,
   User,
   Phone,
-  GraduationCap
+  GraduationCap,
+  Search,
+  QrCode
 } from 'lucide-react';
 
 export default function GroupDetailPage() {
@@ -25,6 +28,8 @@ export default function GroupDetailPage() {
   const [tests, setTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [qrStudent, setQrStudent] = useState<any>(null);
   useEffect(() => {
     if (id) {
       fetchGroupDetails();
@@ -39,12 +44,9 @@ export default function GroupDetailPage() {
       const { data: groupData } = await api.get(`/groups/${id}`);
       setGroup(groupData);
 
-      // Fetch students in this group
-      const { data: allStudents } = await api.get('/students');
-      // Filter students by group (you'll need to implement this properly)
-      setStudents(allStudents.filter((s: any) => 
-        s.classNumber === groupData.classNumber
-      ));
+      // Fetch students in this group using the new endpoint
+      const { data: groupStudents } = await api.get(`/groups/${id}/students`);
+      setStudents(groupStudents);
 
       // Fetch tests for this group
       const { data: testsData } = await api.get('/tests');
@@ -52,6 +54,7 @@ export default function GroupDetailPage() {
       
     } catch (error) {
       console.error('Error fetching group details:', error);
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -96,7 +99,21 @@ export default function GroupDetailPage() {
     );
   }
 
-  const averageScore = 0;
+  // Filter students by search query
+  const filteredStudents = students.filter(student =>
+    student.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.phone?.includes(searchQuery)
+  );
+
+  // Calculate statistics
+  const averageScore = students.length > 0
+    ? Math.round(students.reduce((sum, s) => sum + (s.averagePercentage || 0), 0) / students.length)
+    : 0;
+  
+  const bestScore = students.length > 0
+    ? Math.max(...students.map(s => s.averagePercentage || 0))
+    : 0;
+  
   const totalTests = tests.length;
 
   return (
@@ -199,7 +216,7 @@ export default function GroupDetailPage() {
               <Award className="w-8 h-8 text-orange-600" />
             </div>
             <p className="text-sm text-orange-700 font-semibold uppercase">Eng yaxshi</p>
-            <p className="text-4xl font-bold text-orange-900 mt-2">0%</p>
+            <p className="text-4xl font-bold text-orange-900 mt-2">{bestScore}%</p>
           </CardContent>
         </Card>
       </div>
@@ -207,7 +224,7 @@ export default function GroupDetailPage() {
       {/* Students Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-purple-600" />
@@ -218,6 +235,20 @@ export default function GroupDetailPage() {
               </div>
             </div>
           </div>
+          
+          {/* Search Input */}
+          {students.length > 0 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="O'quvchi ismini yoki telefon raqamini qidirish..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              />
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {students.length === 0 ? (
@@ -227,18 +258,33 @@ export default function GroupDetailPage() {
               </div>
               <p className="text-gray-600">Bu guruhda hali o'quvchilar yo'q</p>
             </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <Search className="w-10 h-10 text-gray-400" />
+              </div>
+              <p className="text-gray-600">Qidiruv bo'yicha o'quvchi topilmadi</p>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-4 text-purple-600 hover:text-purple-700 font-medium"
+              >
+                Tozalash
+              </button>
+            </div>
           ) : (
             <div className="space-y-3">
-              {students.map((student, index) => (
+              {filteredStudents.map((student, index) => (
                 <div 
                   key={student._id}
-                  className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100 hover:shadow-md transition-all cursor-pointer"
-                  onClick={() => setSelectedStudentId(student._id)}
+                  className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100 hover:shadow-md transition-all"
                 >
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                     <span className="text-lg font-bold text-white">{index + 1}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => setSelectedStudentId(student._id)}
+                  >
                     <p className="font-bold text-gray-900 truncate">{student.fullName}</p>
                     {student.phone && (
                       <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
@@ -247,9 +293,28 @@ export default function GroupDetailPage() {
                       </p>
                     )}
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQrStudent(student);
+                    }}
+                    className="p-2 hover:bg-purple-100 rounded-lg transition-colors flex-shrink-0"
+                    title="QR kod"
+                  >
+                    <QrCode className="w-5 h-5 text-purple-600" />
+                  </button>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-2xl font-bold text-gray-900">0%</p>
-                    <p className="text-xs text-gray-500">O'rtacha</p>
+                    <p className={`text-2xl font-bold ${
+                      (student.averagePercentage || 0) >= 80 ? 'text-green-600' :
+                      (student.averagePercentage || 0) >= 60 ? 'text-blue-600' :
+                      (student.averagePercentage || 0) >= 40 ? 'text-orange-600' :
+                      'text-red-600'
+                    }`}>
+                      {student.averagePercentage || 0}%
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {student.testsCompleted || 0} test
+                    </p>
                   </div>
                 </div>
               ))}
@@ -312,6 +377,14 @@ export default function GroupDetailPage() {
         studentId={selectedStudentId} 
         onClose={() => setSelectedStudentId(null)} 
       />
+
+      {/* QR Code Modal */}
+      {qrStudent && (
+        <StudentQRCode
+          student={qrStudent}
+          onClose={() => setQrStudent(null)}
+        />
+      )}
     </div>
   );
 }

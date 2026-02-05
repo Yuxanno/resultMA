@@ -246,7 +246,6 @@ export default function MyGroupsPage() {
                   className="h-full border-2 border-slate-200/50 hover:border-indigo-300 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/20 hover:-translate-y-2 cursor-pointer overflow-hidden"
                   onClick={() => navigate(`/teacher/groups/${group._id}`)}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   <CardContent className="p-6 relative">
                     {/* Icon & Title */}
                     <div className="flex items-start justify-between mb-4">
@@ -316,7 +315,7 @@ export default function MyGroupsPage() {
                     <div className="flex items-center gap-2 text-slate-600">
                       <GraduationCap className="w-4 h-4" />
                       <span className="text-sm font-medium">
-                        {group.studentCount || 0} ta o'quvchi
+                        {group.studentsCount || 0} ta o'quvchi
                       </span>
                     </div>
                   </CardContent>
@@ -368,7 +367,7 @@ export default function MyGroupsPage() {
 
                         <div className="flex items-center gap-1.5 text-xs text-slate-600">
                           <GraduationCap className="w-3.5 h-3.5" />
-                          <span>{group.studentCount || 0} ta o'quvchi</span>
+                          <span>{group.studentsCount || 0} ta o'quvchi</span>
                         </div>
                       </div>
 

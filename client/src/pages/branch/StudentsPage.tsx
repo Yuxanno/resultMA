@@ -10,10 +10,11 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/u
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/hooks/useToast';
-import { Plus, Copy, GraduationCap, Edit2, Trash2, ExternalLink, ChevronRight, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Plus, Copy, GraduationCap, Edit2, Trash2, ExternalLink, ChevronRight, Download, Upload, FileSpreadsheet, Search, QrCode } from 'lucide-react';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import StudentProfileModal from '@/components/StudentProfileModal';
+import StudentQRCode from '@/components/StudentQRCode';
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
@@ -33,6 +34,8 @@ export default function StudentsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [qrStudent, setQrStudent] = useState<any>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     classNumber: 7 as number,
@@ -56,7 +59,7 @@ export default function StudentsPage() {
       const { data } = await api.get('/students');
       setStudents(data);
     } catch (err: any) {
-      console.error('Error fetching students:', err);
+      console.error('🔍 fetchStudents - Error:', err);
     } finally {
       setPageLoading(false);
     }
@@ -91,26 +94,21 @@ export default function StudentsPage() {
 
   const getDirectionSubjects = () => {
     if (!formData.directionId) {
-      console.log('No direction selected');
       return [];
     }
     
     const direction = directions.find(d => d._id === formData.directionId);
-    console.log('Selected direction:', direction);
     
     if (!direction) {
-      console.log('Direction not found');
       return [];
     }
     
     if (!direction.subjects || direction.subjects.length === 0) {
-      console.log('Direction has no subjects');
       return [];
     }
     
     const result: any[] = [];
     direction.subjects?.forEach((subjectChoice: any) => {
-      console.log('Processing subject choice:', subjectChoice);
       
       if (subjectChoice.type === 'single') {
         const subjectId = typeof subjectChoice.subjectIds[0] === 'object' 
@@ -137,7 +135,6 @@ export default function StudentsPage() {
       }
     });
     
-    console.log('Direction subjects result:', result);
     return result;
   };
 
@@ -235,7 +232,7 @@ export default function StudentsPage() {
       };
 
       if (editingStudent) {
-        await api.put(`/students/${editingStudent._id}`, submitData);
+        const response = await api.put(`/students/${editingStudent._id}`, submitData);
         fetchStudents();
         success('O\'quvchi muvaffaqiyatli yangilandi!');
       } else {
@@ -253,7 +250,8 @@ export default function StudentsPage() {
       }
       handleCloseForm();
     } catch (err: any) {
-      console.error('Error saving student:', err);
+      console.error('🔍 handleSubmit - Error saving student:', err);
+      console.error('🔍 handleSubmit - Error response:', err.response?.data);
       error(err.response?.data?.message || 'Xatolik yuz berdi');
     } finally {
       setLoading(false);
@@ -262,14 +260,44 @@ export default function StudentsPage() {
 
   const handleEdit = (student: any) => {
     setEditingStudent(student);
+    
+    // Преобразуем группы из формата API в формат формы
+    const formattedGroups = (student.groups || []).map((g: any) => {
+      const result = {
+        groupId: g._id,
+        subjectId: typeof g.subjectId === 'object' ? g.subjectId._id : g.subjectId
+      };
+      return result;
+    });
+    
+    // Восстанавливаем selectedSubjects на основе subjectIds студента
+    const direction = directions.find(d => d._id === student.directionId?._id);
+    const selectedSubjects: any = {};
+    
+    if (direction) {
+      // Для каждой группы выбора в направлении
+      direction.subjectChoices?.forEach((choice: any) => {
+        if (choice.type === 'choice') {
+          // Находим какой предмет из этой группы выбран у студента
+          const selectedSubjectId = choice.subjectIds.find((sid: string) => 
+            student.subjectIds?.some((s: any) => (typeof s === 'object' ? s._id : s) === sid)
+          );
+          
+          if (selectedSubjectId) {
+            selectedSubjects[choice.choiceGroup] = selectedSubjectId;
+          }
+        }
+      });
+    }
+    
     setFormData({
       fullName: student.fullName,
       classNumber: student.classNumber,
       phone: student.phone || '',
       directionId: student.directionId?._id || '',
       subjectIds: student.subjectIds?.map((s: any) => s._id) || [],
-      selectedSubjects: {},
-      groups: student.groups || []
+      selectedSubjects,
+      groups: formattedGroups
     });
     setShowForm(true);
   };
@@ -317,10 +345,17 @@ export default function StudentsPage() {
   };
 
   const handleGroupSelect = (subjectId: string, groupId: string) => {
-    const newGroups = (formData.groups || []).filter(g => g.subjectId !== subjectId);
+    // Фильтруем старые группы, убирая группу для этого предмета
+    const newGroups = (formData.groups || []).filter(g => {
+      const gSubjectId = typeof g.subjectId === 'object' ? (g.subjectId as any)._id : g.subjectId;
+      return gSubjectId !== subjectId;
+    });
+    
+    // Добавляем новую группу если выбрана
     if (groupId) {
       newGroups.push({ groupId, subjectId });
     }
+    
     setFormData({ ...formData, groups: newGroups });
   };
 
@@ -444,6 +479,13 @@ export default function StudentsPage() {
     );
   }
 
+  // Filter students by search query
+  const filteredStudents = students.filter(student =>
+    student.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.phone?.includes(searchQuery) ||
+    student.directionId?.nameUzb?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -477,6 +519,20 @@ export default function StudentsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Search Input */}
+      {students.length > 0 && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="O'quvchi ismini, telefon yoki yo'nalishni qidirish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+          />
+        </div>
+      )}
 
       {/* Template Download Modal */}
       <Dialog open={showTemplateModal} onClose={() => setShowTemplateModal(false)}>
@@ -900,7 +956,12 @@ export default function StudentsPage() {
                       return groupSubjectId === subject._id && groupClassNumber === formClassNumber;
                     });
                     
-                    const selectedGroup = formData.groups?.find(g => g.subjectId === subject._id);
+                    // Ищем выбранную группу для этого предмета
+                    const selectedGroup = formData.groups?.find(g => {
+                      const gSubjectId = typeof g.subjectId === 'object' ? (g.subjectId as any)._id : g.subjectId;
+                      const match = gSubjectId === subject._id;
+                      return match;
+                    });
                     
                     return (
                       <div key={subject._id} className="bg-white border border-gray-200 rounded-lg p-3">
@@ -946,60 +1007,79 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {students.length === 0 ? (
+      {filteredStudents.length === 0 ? (
         <Card className="border-2 border-dashed border-gray-300">
           <CardContent className="py-16">
-            <EmptyState
-              icon={GraduationCap}
-              title="O'quvchilar yo'q"
-              description="Yangi o'quvchi qo'shish uchun yuqoridagi tugmani bosing"
-              action={{
-                label: "O'quvchi qo'shish",
-                onClick: () => setShowForm(true)
-              }}
-            />
+            {students.length === 0 ? (
+              <EmptyState
+                icon={GraduationCap}
+                title="O'quvchilar yo'q"
+                description="Yangi o'quvchi qo'shish uchun yuqoridagi tugmani bosing"
+                action={{
+                  label: "O'quvchi qo'shish",
+                  onClick: () => setShowForm(true)
+                }}
+              />
+            ) : (
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-10 h-10 text-gray-400" />
+                </div>
+                <p className="text-gray-600 mb-4">Qidiruv bo'yicha o'quvchi topilmadi</p>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Tozalash
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {students.map((student) => (
+          {filteredStudents.map((student) => (
             <Card 
               key={student._id} 
-              className="group hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden cursor-pointer relative"
-              onClick={() => setSelectedStudentId(student._id)}
+              className="group hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden relative"
             >
               <CardContent className="p-6 relative">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="relative flex-shrink-0">
-                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                      <GraduationCap className="w-8 h-8 text-white" />
+                <div 
+                  className="cursor-pointer"
+                  onClick={() => setSelectedStudentId(student._id)}
+                >
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                        <GraduationCap className="w-8 h-8 text-white" />
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">
-                      {student.fullName}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="info">{student.classNumber}-sinf</Badge>
-                      {student.directionId && (
-                        <Badge variant="purple">{student.directionId.nameUzb}</Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {student.phone && (
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="text-lg">📱</span>
-                    </div>
+                    
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-500 uppercase font-semibold">Telefon</p>
-                      <p className="font-bold text-gray-900">{student.phone}</p>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">
+                        {student.fullName}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="info">{student.classNumber}-sinf</Badge>
+                        {student.directionId && (
+                          <Badge variant="purple">{student.directionId.nameUzb}</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
+
+                  {student.phone && (
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 mb-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg">📱</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Telefon</p>
+                        <p className="font-bold text-gray-900">{student.phone}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -1008,6 +1088,13 @@ export default function StudentsPage() {
                   </div>
                   
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setQrStudent(student)}
+                      className="p-2 hover:bg-purple-50 rounded-lg transition-colors group/btn"
+                      title="QR kod"
+                    >
+                      <QrCode className="w-5 h-5 text-purple-600 group-hover/btn:scale-110 transition-transform" />
+                    </button>
                     <button
                       onClick={() => openProfile(student.profileToken)}
                       className="p-2 hover:bg-blue-50 rounded-lg transition-colors group/btn"
@@ -1049,6 +1136,14 @@ export default function StudentsPage() {
         studentId={selectedStudentId} 
         onClose={() => setSelectedStudentId(null)} 
       />
+
+      {/* QR Code Modal */}
+      {qrStudent && (
+        <StudentQRCode
+          student={qrStudent}
+          onClose={() => setQrStudent(null)}
+        />
+      )}
     </div>
   );
 }

@@ -199,16 +199,25 @@ export default function PublicProfile() {
                   <div
                     key={result._id}
                     className="flex items-center gap-4 p-5 border-2 border-gray-100 rounded-xl hover:border-primary/30 hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => navigate(`/test-result/${result._id}/${token}`)}
+                    onClick={() => result.type === 'test' ? navigate(`/test-result/${result._id}/${token}`) : null}
                   >
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="text-primary font-bold text-lg">#{index + 1}</span>
+                    <div className={`w-12 h-12 ${result.type === 'assignment' ? 'bg-purple-100' : 'bg-primary/10'} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      {result.type === 'assignment' ? (
+                        <BookOpen className="w-6 h-6 text-purple-600" />
+                      ) : (
+                        <span className="text-primary font-bold text-lg">#{index + 1}</span>
+                      )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 mb-1 truncate">
-                        {result.testId?.name || 'Test'}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900 truncate">
+                          {result.name}
+                        </h3>
+                        <Badge variant={result.type === 'assignment' ? 'purple' : 'info'} className="text-xs">
+                          {result.type === 'assignment' ? 'Topshiriq' : 'Test'}
+                        </Badge>
+                      </div>
                       <div className="flex items-center gap-3 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />

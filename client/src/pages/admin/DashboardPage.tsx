@@ -257,8 +257,6 @@ export default function DashboardPage() {
                 onClick={() => navigate(`/admin/branches/${branch._id}/statistics`)}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 
                 <div className="relative p-4 sm:p-6">
                   {/* Header */}
@@ -320,13 +318,11 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 transform -skew-x-12 group-hover:translate-x-full transition-all duration-1000"></div>
               </div>
             ))}
           </div>
         ) : (
           <div className="relative bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50"></div>
             <div className="relative p-16 text-center">
               <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                 <Building2 className="w-12 h-12 text-gray-400" />

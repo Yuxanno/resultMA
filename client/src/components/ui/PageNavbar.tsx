@@ -52,8 +52,8 @@ export function PageNavbar({
       
       <div className="relative px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex flex-col gap-4">
-          {/* Top Row: Title & Badge */}
-          <div className="flex items-start justify-between gap-3">
+          {/* Top Row: Title, Description & Add Button */}
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent truncate">
@@ -70,30 +70,11 @@ export function PageNavbar({
                 <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-1.5 font-medium line-clamp-2">{description}</p>
               )}
             </div>
-          </div>
-          
-          {/* Bottom Row: Search and Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch gap-3">
-            {/* Search */}
-            {showSearch && (
-              <div className="relative flex-1">
-                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder={searchPlaceholder}
-                  value={searchValue}
-                  onChange={(e) => onSearchChange?.(e.target.value)}
-                  className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm placeholder:text-gray-400 shadow-sm"
-                />
-              </div>
-            )}
             
-            {children}
-            
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {extraActions}
-              {showAddButton && (
+            {/* Add Button - now in top row */}
+            {showAddButton && (
+              <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+                {extraActions}
                 <Button 
                   onClick={onAddClick} 
                   className="w-full sm:w-auto shadow-lg hover:shadow-xl transition-all"
@@ -102,9 +83,37 @@ export function PageNavbar({
                   {addButtonIcon || <Plus className="w-4 h-4 mr-2" />}
                   <span className="truncate">{addButtonText}</span>
                 </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Bottom Row: Search and Other Actions */}
+          {(showSearch || children || (extraActions && !showAddButton)) && (
+            <div className="flex flex-col sm:flex-row items-stretch gap-3">
+              {/* Search */}
+              {showSearch && (
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder={searchPlaceholder}
+                    value={searchValue}
+                    onChange={(e) => onSearchChange?.(e.target.value)}
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm placeholder:text-gray-400 shadow-sm"
+                  />
+                </div>
+              )}
+              
+              {children}
+              
+              {/* Extra Actions (only if no add button) */}
+              {!showAddButton && extraActions && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {extraActions}
+                </div>
               )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

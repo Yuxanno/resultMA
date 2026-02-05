@@ -9,6 +9,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/u
 import { Checkbox } from '@/components/ui/Checkbox';
 import { useToast } from '@/hooks/useToast';
 import StudentProfileModal from '@/components/StudentProfileModal';
+import StudentQRCode from '@/components/StudentQRCode';
 import { 
   ArrowLeft,
   Users, 
@@ -20,7 +21,8 @@ import {
   FileText,
   Plus,
   Search,
-  BarChart3
+  BarChart3,
+  QrCode
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 
@@ -30,18 +32,21 @@ export default function GroupDetailPage() {
   const [group, setGroup] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [tests, setTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [addingStudents, setAddingStudents] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [qrStudent, setQrStudent] = useState<any>(null);
   const { success, error } = useToast();
 
   useEffect(() => {
     if (id) {
       fetchGroupDetails();
       fetchStudents();
+      fetchTests();
     }
   }, [id]);
 
@@ -69,9 +74,25 @@ export default function GroupDetailPage() {
     }
   };
 
+  const fetchTests = async () => {
+    try {
+      const { data } = await api.get(`/tests?groupId=${id}`);
+      setTests(data);
+    } catch (error) {
+      console.error('Error fetching tests:', error);
+    }
+  };
+
   const fetchAllStudents = async () => {
     try {
-      const { data } = await api.get('/teacher/my-students');
+      // Получаем всех студентов филиала с этим предметом
+      const { data } = await api.get('/students', {
+        params: {
+          subjectId: group.subjectId?._id || group.subjectId,
+          classNumber: group.classNumber
+        }
+      });
+      console.log('All students with subject:', data);
       setAllStudents(data);
     } catch (err) {
       console.error('Error fetching all students:', err);
@@ -147,46 +168,32 @@ export default function GroupDetailPage() {
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in pb-24 sm:pb-24">
       {/* Mobile-friendly Header */}
-      <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/teacher/groups')}
-              className="flex-shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 truncate">{group.name}</h1>
-              <p className="text-xs sm:text-sm text-slate-600 hidden sm:block">Guruh tafsilotlari va o'quvchilar</p>
-            </div>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <Button 
+            variant="ghost" 
             size="sm"
-            onClick={() => {
-              fetchAllStudents();
-              setShowAddModal(true);
-            }}
+            onClick={() => navigate('/teacher/groups')}
             className="flex-shrink-0"
           >
-            <Plus className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">O'quvchi qo'shish</span>
+            <ArrowLeft className="w-4 h-4" />
           </Button>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 truncate">{group.name}</h1>
+            <p className="text-xs sm:text-sm text-slate-600 hidden sm:block">Guruh tafsilotlari va o'quvchilar</p>
+          </div>
         </div>
-        
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="O'quvchi qidirish..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-3 py-2.5 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:border-green-500 transition-colors text-sm text-slate-900 placeholder:text-slate-400"
-          />
-        </div>
+        <Button 
+          size="sm"
+          onClick={() => {
+            fetchAllStudents();
+            setShowAddModal(true);
+          }}
+          className="flex-shrink-0"
+        >
+          <Plus className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline">O'quvchi qo'shish</span>
+        </Button>
       </div>
 
       {/* Add Students Modal */}
@@ -206,26 +213,50 @@ export default function GroupDetailPage() {
             <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-3">
               {allStudents.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">
-                  O'quvchilar yo'q. Avval o'quvchi yarating.
+                  Bu fandan va sinfdan o'quvchilar yo'q.
                 </p>
               ) : (
                 allStudents
                   .filter(student => !students.find(s => s._id === student._id))
-                  .map((student) => (
-                    <label
-                      key={student._id}
-                      className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                    >
-                      <Checkbox
-                        checked={selectedStudents.includes(student._id)}
-                        onChange={() => toggleStudent(student._id)}
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{student.fullName}</p>
-                        <p className="text-sm text-gray-500">{student.classNumber}-sinf</p>
-                      </div>
-                    </label>
-                  ))
+                  .length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">
+                      Barcha o'quvchilar allaqachon bu guruhda.
+                    </p>
+                  ) : (
+                    allStudents
+                      .filter(student => !students.find(s => s._id === student._id))
+                      .map((student) => {
+                        // Найти группу студента для этого предмета
+                        const studentGroupForSubject = student.groups?.find((g: any) => {
+                          const groupSubjectId = g.subjectId?._id || g.subjectId;
+                          const currentSubjectId = group.subjectId?._id || group.subjectId;
+                          return groupSubjectId?.toString() === currentSubjectId?.toString();
+                        });
+                        
+                        return (
+                          <label
+                            key={student._id}
+                            className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={selectedStudents.includes(student._id)}
+                              onChange={() => toggleStudent(student._id)}
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">{student.fullName}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-sm text-gray-500">{student.classNumber}-sinf</p>
+                                {studentGroupForSubject && (
+                                  <Badge variant="warning" size="sm">
+                                    {studentGroupForSubject.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })
+                  )
               )}
             </div>
 
@@ -320,7 +351,7 @@ export default function GroupDetailPage() {
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Testlar</p>
-                <p className="text-base sm:text-xl font-bold text-gray-900 mt-0.5 sm:mt-1">0 ta</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900 mt-0.5 sm:mt-1">{tests.length} ta</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-soft flex-shrink-0">
                 <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -461,11 +492,13 @@ export default function GroupDetailPage() {
                     {filteredStudents.map((student, index) => (
                       <tr 
                         key={student._id} 
-                        className="hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => setSelectedStudentId(student._id)}
+                        className="hover:bg-gray-50 transition-colors"
                       >
                         <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
-                        <td className="px-6 py-4">
+                        <td 
+                          className="px-6 py-4 cursor-pointer"
+                          onClick={() => setSelectedStudentId(student._id)}
+                        >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold">
                               {student.fullName?.charAt(0).toUpperCase()}
@@ -478,10 +511,26 @@ export default function GroupDetailPage() {
                           <Badge variant="success" size="sm">Faol</Badge>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="sm">
-                            <BarChart3 className="w-4 h-4 mr-1" />
-                            Natijalar
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQrStudent(student);
+                              }}
+                              className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="QR kod"
+                            >
+                              <QrCode className="w-4 h-4 text-purple-600" />
+                            </button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedStudentId(student._id)}
+                            >
+                              <BarChart3 className="w-4 h-4 mr-1" />
+                              Natijalar
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -494,14 +543,16 @@ export default function GroupDetailPage() {
                 {filteredStudents.map((student, index) => (
                   <div
                     key={student._id}
-                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 transition-colors cursor-pointer active:scale-98"
-                    onClick={() => setSelectedStudentId(student._id)}
+                    className="p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0">
                         {student.fullName?.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div 
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => setSelectedStudentId(student._id)}
+                      >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-semibold text-gray-500">#{index + 1}</span>
                           <Badge variant="success" size="sm">Faol</Badge>
@@ -509,9 +560,26 @@ export default function GroupDetailPage() {
                         <h3 className="font-semibold text-gray-900 mb-1 truncate">{student.fullName}</h3>
                         <p className="text-sm text-gray-600">{student.phone || 'Telefon yo\'q'}</p>
                       </div>
-                      <Button variant="ghost" size="sm" className="flex-shrink-0">
-                        <BarChart3 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQrStudent(student);
+                          }}
+                          className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="QR kod"
+                        >
+                          <QrCode className="w-4 h-4 text-purple-600" />
+                        </button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="flex-shrink-0"
+                          onClick={() => setSelectedStudentId(student._id)}
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -541,6 +609,14 @@ export default function GroupDetailPage() {
         studentId={selectedStudentId} 
         onClose={() => setSelectedStudentId(null)} 
       />
+
+      {/* QR Code Modal */}
+      {qrStudent && (
+        <StudentQRCode
+          student={qrStudent}
+          onClose={() => setQrStudent(null)}
+        />
+      )}
     </div>
   );
 }

@@ -33,11 +33,11 @@ export default function BranchDashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const [groupsRes, studentsRes, teachersRes, testResultsRes] = await Promise.all([
+      const [groupsRes, studentsRes, teachersRes, dashboardRes] = await Promise.all([
         api.get('/groups'),
         api.get('/students'),
         api.get('/teachers'),
-        api.get('/test-results').catch(() => ({ data: [] }))
+        api.get('/statistics/branch/dashboard')
       ]);
 
       // Calculate fill percentage
@@ -52,72 +52,15 @@ export default function BranchDashboardPage() {
 
       const fillPercentage = totalCapacity > 0 ? Math.round((totalStudents / totalCapacity) * 100) : 0;
 
-      // Calculate top students
-      const students = studentsRes.data;
-      const testResults = testResultsRes.data;
-
-      // Group test results by student
-      const studentScores: Record<string, { total: number; count: number }> = {};
-      
-      testResults.forEach((result: any) => {
-        const studentId = result.studentId?._id || result.studentId;
-        if (!studentId) return;
-
-        if (!studentScores[studentId]) {
-          studentScores[studentId] = {
-            total: 0,
-            count: 0
-          };
-        }
-
-        if (result.score !== undefined && result.score !== null) {
-          studentScores[studentId].total += result.score;
-          studentScores[studentId].count += 1;
-        }
-      });
-
-      // Create array with ALL students (including those with no test results)
-      const studentsWithScores = students.map((student: any) => {
-        const scores = studentScores[student._id];
-        return {
-          _id: student._id,
-          fullName: student.fullName,
-          averageScore: scores && scores.count > 0 ? Math.round(scores.total / scores.count) : 0,
-          testsCompleted: scores ? scores.count : 0
-        };
-      })
-      .sort((a, b) => {
-        // Sort by score descending, then by name ascending
-        if (b.averageScore !== a.averageScore) {
-          return b.averageScore - a.averageScore;
-        }
-        return a.fullName.localeCompare(b.fullName);
-      });
-
-      // Assign ranks (same score = same rank)
-      const topStudents = studentsWithScores.slice(0, 100).map((student, index, array) => {
-        let rank = index + 1;
-        
-        // Check if previous student has same score
-        if (index > 0 && array[index - 1].averageScore === student.averageScore) {
-          rank = (array[index - 1] as any).rank;
-        }
-        
-        return {
-          ...student,
-          rank
-        };
-      });
-
       setStats({
         totalGroups: groupsRes.data.length,
         totalStudents: studentsRes.data.length,
         totalTeachers: teachersRes.data.length,
         totalTests: 0,
-        totalTestResults: testResults.length,
+        totalTestResults: 0,
         averageScore: 0,
         fillPercentage,
-        topStudents
+        topStudents: dashboardRes.data.topStudents || []
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -235,7 +178,7 @@ export default function BranchDashboardPage() {
             </div>
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {stats.topStudents.map((student, index) => {
+              {stats.topStudents.map((student) => {
                 const rank = student.rank;
                 const isTopThree = rank <= 3;
                 

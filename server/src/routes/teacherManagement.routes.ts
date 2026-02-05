@@ -192,46 +192,6 @@ router.post('/students', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// O'qituvchining o'quvchilarini olish
-router.get('/my-students', authenticate, async (req: AuthRequest, res) => {
-  try {
-    if (req.user?.role !== UserRole.TEACHER) {
-      return res.status(403).json({ message: 'Faqat o\'qituvchilar uchun' });
-    }
-
-    // O'qituvchining guruhlarini topish
-    const groups = await Group.find({ teacherId: req.user.id }).select('_id');
-    const groupIds = groups.map(g => g._id);
-
-    // Shu guruhlardagi o'quvchilarni topish
-    const studentGroups = await StudentGroup.find({ groupId: { $in: groupIds } })
-      .populate({
-        path: 'studentId',
-        select: 'fullName phone branchId classNumber directionId subjectIds profileToken'
-      })
-      .populate('groupId', 'name');
-
-    // Unique o'quvchilarni olish
-    const uniqueStudents = new Map();
-    studentGroups.forEach((sg: any) => {
-      if (sg.studentId && !uniqueStudents.has(sg.studentId._id.toString())) {
-        uniqueStudents.set(sg.studentId._id.toString(), {
-          ...sg.studentId.toObject(),
-          groups: []
-        });
-      }
-      if (sg.studentId && sg.groupId) {
-        uniqueStudents.get(sg.studentId._id.toString()).groups.push(sg.groupId);
-      }
-    });
-
-    res.json(Array.from(uniqueStudents.values()));
-  } catch (error: any) {
-    console.error('Error fetching teacher students:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
 // O'quvchini guruhga qo'shish
 router.post('/groups/:groupId/students/:studentId', authenticate, async (req: AuthRequest, res) => {
   try {

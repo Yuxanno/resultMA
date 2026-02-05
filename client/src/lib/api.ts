@@ -23,21 +23,12 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Логируем только в development
-  if (import.meta.env.DEV) {
-    console.log('API Request:', config.method?.toUpperCase(), config.url, config.data);
-  }
-  
   return config;
 });
 
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Логируем только в development
-    if (import.meta.env.DEV) {
-      console.log('API Response:', response.config.url, response.status);
-    }
     return response;
   },
   (error) => {

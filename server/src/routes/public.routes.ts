@@ -34,12 +34,50 @@ router.get('/profile/:token', async (req, res) => {
       subjectName: sg.groupId?.subjectId?.nameUzb
     })).filter(g => g._id);
     
-    const results = await TestResult.find({ studentId: student._id })
+    // Получаем результаты тестов
+    const testResults = await TestResult.find({ studentId: student._id })
       .populate('testId')
       .sort({ createdAt: -1 });
     
-    const avgPercentage = results.length > 0
-      ? results.reduce((sum, r) => sum + r.percentage, 0) / results.length
+    // Получаем результаты заданий (assignments)
+    const { AssignmentSubmission } = await import('../models/Assignment');
+    const assignmentResults = await AssignmentSubmission.find({ 
+      studentId: student._id,
+      percentage: { $exists: true, $ne: null }
+    })
+      .populate({
+        path: 'assignmentId',
+        select: 'title type createdAt'
+      })
+      .sort({ gradedAt: -1 });
+    
+    // Объединяем результаты тестов и заданий
+    const allResults = [
+      ...testResults.map(r => {
+        const test = r.testId as any;
+        return {
+          _id: r._id,
+          type: 'test',
+          name: test?.name || 'Test',
+          percentage: r.percentage,
+          totalPoints: r.totalPoints,
+          maxPoints: r.maxPoints,
+          createdAt: r.createdAt
+        };
+      }),
+      ...assignmentResults.map((r: any) => ({
+        _id: r._id,
+        type: 'assignment',
+        name: r.assignmentId?.title || 'Topshiriq',
+        percentage: r.percentage,
+        totalPoints: r.percentage,
+        maxPoints: 100,
+        createdAt: r.gradedAt || r.createdAt
+      }))
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    const avgPercentage = allResults.length > 0
+      ? allResults.reduce((sum, r) => sum + r.percentage, 0) / allResults.length
       : 0;
     
     res.json({
@@ -52,9 +90,12 @@ router.get('/profile/:token', async (req, res) => {
       groups,
       groupsCount: groups.length,
       avgPercentage: Math.round(avgPercentage),
-      results
+      results: allResults,
+      testResults,
+      assignmentResults
     });
   } catch (error) {
+    console.error('Error fetching profile:', error);
     res.status(500).json({ message: 'Server xatosi' });
   }
 });

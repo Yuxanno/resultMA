@@ -219,7 +219,6 @@ export default function TeacherDashboardPage() {
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-lg border border-white/50 mb-4 md:mb-6">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl md:rounded-2xl blur-lg opacity-50"></div>
               <div className="relative w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl md:rounded-2xl flex items-center justify-center">
                 <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>

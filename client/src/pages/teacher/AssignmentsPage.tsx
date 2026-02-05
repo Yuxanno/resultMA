@@ -139,7 +139,6 @@ export default function AssignmentsPage() {
                   className="h-full border-2 border-slate-200/50 hover:border-orange-300 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/20 hover:-translate-y-2 cursor-pointer overflow-hidden"
                   onClick={() => navigate(`/teacher/assignments/${assignment._id}`)}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   <CardContent className="p-4 sm:p-5 lg:p-6 relative">
                     {/* Icon & Actions */}
                     <div className="flex items-start justify-between mb-3 sm:mb-4">

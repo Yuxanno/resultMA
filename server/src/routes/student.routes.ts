@@ -62,7 +62,7 @@ router.get('/', authenticate, cacheMiddleware(120), async (req: AuthRequest, res
   try {
     const { groupId, classNumber } = req.query;
     
-    console.log('GET /students - Query params:', { groupId, classNumber, userRole: req.user?.role });
+    console.log('GET /students - Query params:', { groupId, classNumber, userRole: req.user?.role, teacherId: req.user?.teacherId });
     
     // If requesting students for specific group
     if (groupId) {
@@ -73,12 +73,25 @@ router.get('/', authenticate, cacheMiddleware(120), async (req: AuthRequest, res
         return res.status(404).json({ message: 'Guruh topilmadi' });
       }
       
-      console.log('Found group:', { groupId, teacherId: group.teacherId, branchId: group.branchId });
+      console.log('Found group:', { 
+        groupId, 
+        teacherId: group.teacherId?.toString(), 
+        branchId: group.branchId?.toString(),
+        userTeacherId: req.user?.teacherId,
+        userBranchId: req.user?.branchId
+      });
       
       // Check access for teacher
       if (req.user?.role === UserRole.TEACHER) {
-        if (!group.teacherId || group.teacherId.toString() !== req.user.teacherId) {
-          console.log('Teacher access denied');
+        if (!group.teacherId) {
+          console.log('Group has no teacher assigned');
+          return res.status(403).json({ message: 'Bu guruhga o\'qituvchi tayinlanmagan' });
+        }
+        if (group.teacherId.toString() !== req.user.teacherId) {
+          console.log('Teacher access denied - teacherId mismatch:', {
+            groupTeacherId: group.teacherId.toString(),
+            userTeacherId: req.user.teacherId
+          });
           return res.status(403).json({ message: 'Sizda bu guruh o\'quvchilariga kirish huquqi yo\'q' });
         }
       } else if (req.user?.role === UserRole.FIL_ADMIN) {
@@ -138,8 +151,37 @@ router.get('/', authenticate, cacheMiddleware(120), async (req: AuthRequest, res
       .lean()
       .exec();
     
-    console.log('Fetched students:', students.length, 'filters:', filter);
-    res.json(students);
+    // Загружаем группы для каждого студента
+    const studentsWithGroups = await Promise.all(students.map(async (student: any) => {
+      const studentGroups = await StudentGroup.find({ studentId: student._id })
+        .populate({
+          path: 'groupId',
+          select: 'name subjectId classNumber letter',
+          populate: {
+            path: 'subjectId',
+            select: 'nameUzb'
+          }
+        })
+        .lean();
+      
+      // Фильтруем только валидные группы (где groupId не null)
+      const groups = studentGroups
+        .filter((sg: any) => sg.groupId != null)
+        .map((sg: any) => ({
+          _id: sg.groupId._id,
+          name: sg.groupId.name,
+          subjectId: sg.groupId.subjectId,
+          classNumber: sg.groupId.classNumber,
+          letter: sg.groupId.letter
+        }));
+      
+      return {
+        ...student,
+        groups
+      };
+    }));
+    
+    res.json(studentsWithGroups);
   } catch (error: any) {
     console.error('Error fetching students:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
@@ -201,12 +243,30 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const { groups, ...updateData } = req.body;
+    
+    const student = await Student.findByIdAndUpdate(req.params.id, updateData, { new: true })
       .populate('directionId')
       .populate('subjectIds');
     
     if (!student) {
       return res.status(404).json({ message: 'O\'quvchi topilmadi' });
+    }
+    
+    // Обновляем группы студента
+    if (groups && Array.isArray(groups)) {
+      // Удаляем старые связи
+      await StudentGroup.deleteMany({ studentId: student._id });
+      
+      // Добавляем новые
+      if (groups.length > 0) {
+        const studentGroups = groups.map((g: any) => ({
+          studentId: student._id,
+          groupId: g.groupId,
+          subjectId: g.subjectId
+        }));
+        await StudentGroup.insertMany(studentGroups);
+      }
     }
     
     // Инвалидируем кэш студентов

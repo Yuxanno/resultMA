@@ -45,7 +45,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     
     const groupsWithCount = filteredGroups.map(group => ({
       ...group.toObject(), // Преобразуем Mongoose документ в plain object
-      studentCount: countMap.get(group._id.toString()) || 0
+      studentsCount: countMap.get(group._id.toString()) || 0
     }));
     
     console.log('Fetched groups:', groupsWithCount.length, 'for user role:', req.user?.role);
@@ -91,6 +91,79 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
     res.json(group);
   } catch (error: any) {
     console.error('Error fetching group:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Get students in a group
+router.get('/:id/students', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const groupId = req.params.id;
+    console.log('Fetching students for group:', groupId);
+    
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      console.log('Group not found:', groupId);
+      return res.status(404).json({ message: 'Guruh topilmadi' });
+    }
+    
+    // Проверяем доступ к филиалу
+    if (req.user?.role === UserRole.TEACHER) {
+      if (!group.teacherId || group.teacherId.toString() !== req.user.teacherId) {
+        console.log('Teacher access denied for group:', groupId);
+        return res.status(403).json({ message: 'Sizda bu guruhga kirish huquqi yo\'q' });
+      }
+    } else if (req.user?.role === UserRole.FIL_ADMIN) {
+      if (group.branchId?.toString() !== req.user?.branchId?.toString()) {
+        console.log('Branch admin access denied for group:', groupId);
+        return res.status(403).json({ message: 'Sizda bu guruhga kirish huquqi yo\'q' });
+      }
+    }
+    
+    // Получаем всех студентов этой группы
+    const studentGroups = await StudentGroup.find({ groupId: groupId })
+      .populate({
+        path: 'studentId',
+        populate: [
+          { path: 'branchId' },
+          { path: 'directionId' },
+          { path: 'subjectIds' }
+        ]
+      })
+      .lean();
+    
+    console.log('Found student-group relations:', studentGroups.length);
+    
+    const students = studentGroups
+      .map(sg => sg.studentId)
+      .filter(student => student != null);
+    
+    // Добавляем статистику по тестам для каждого студента
+    const TestResult = (await import('../models/TestResult')).default;
+    
+    const studentsWithStats = await Promise.all(
+      students.map(async (student: any) => {
+        const testResults = await TestResult.find({ studentId: student._id }).lean();
+        
+        let averagePercentage = 0;
+        if (testResults.length > 0) {
+          const totalPercentage = testResults.reduce((sum, result) => sum + (result.percentage || 0), 0);
+          averagePercentage = Math.round(totalPercentage / testResults.length);
+        }
+        
+        return {
+          ...student,
+          averagePercentage,
+          testsCompleted: testResults.length
+        };
+      })
+    );
+    
+    console.log('Returning students with stats:', studentsWithStats.length);
+    res.json(studentsWithStats);
+  } catch (error: any) {
+    console.error('Error fetching group students:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

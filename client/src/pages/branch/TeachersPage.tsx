@@ -8,7 +8,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/u
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/hooks/useToast';
-import { Plus, UserCheck, Edit2, Trash2, Phone, User } from 'lucide-react';
+import { Plus, UserCheck, Edit2, Trash2, Phone, User, Search } from 'lucide-react';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 
@@ -18,6 +18,7 @@ export default function TeachersPage() {
   const [editingTeacher, setEditingTeacher] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -122,6 +123,12 @@ export default function TeachersPage() {
     );
   }
 
+  // Filter teachers by search query
+  const filteredTeachers = teachers.filter(teacher =>
+    teacher.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    teacher.username?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 pb-20">
       <PageNavbar
@@ -131,6 +138,20 @@ export default function TeachersPage() {
         addButtonText="O'qituvchi qo'shish"
         onAddClick={() => setShowForm(true)}
       />
+
+      {/* Search Input */}
+      {teachers.length > 0 && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="O'qituvchi ismini qidirish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+          />
+        </div>
+      )}
 
       <Dialog open={showForm} onClose={handleCloseForm}>
         <DialogHeader>
@@ -194,25 +215,39 @@ export default function TeachersPage() {
         </DialogContent>
       </Dialog>
 
-      {teachers.length === 0 ? (
+      {filteredTeachers.length === 0 ? (
         <Card className="border-2 border-dashed border-gray-300">
           <CardContent className="py-16">
-            <EmptyState
-              icon={UserCheck}
-              title="O'qituvchilar yo'q"
-              description="Yangi o'qituvchi qo'shish uchun yuqoridagi tugmani bosing"
-              action={{
-                label: "O'qituvchi qo'shish",
-                onClick: () => setShowForm(true)
-              }}
-            />
+            {teachers.length === 0 ? (
+              <EmptyState
+                icon={UserCheck}
+                title="O'qituvchilar yo'q"
+                description="Yangi o'qituvchi qo'shish uchun yuqoridagi tugmani bosing"
+                action={{
+                  label: "O'qituvchi qo'shish",
+                  onClick: () => setShowForm(true)
+                }}
+              />
+            ) : (
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-10 h-10 text-gray-400" />
+                </div>
+                <p className="text-gray-600 mb-4">Qidiruv bo'yicha o'qituvchi topilmadi</p>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-green-600 hover:text-green-700 font-medium"
+                >
+                  Tozalash
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {teachers.map((teacher) => (
+          {filteredTeachers.map((teacher) => (
             <Card key={teacher._id} className="group hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <CardContent className="p-6 relative">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="relative flex-shrink-0">

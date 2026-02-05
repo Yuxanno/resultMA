@@ -9,7 +9,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/u
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/hooks/useToast';
-import { Plus, Users, Edit2, Trash2, User, ChevronRight } from 'lucide-react';
+import { Plus, Users, Edit2, Trash2, User, ChevronRight, Search } from 'lucide-react';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 
@@ -22,6 +22,7 @@ export default function GroupsPage() {
   const [editingGroup, setEditingGroup] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     classNumber: 7 as number,
@@ -150,6 +151,13 @@ export default function GroupsPage() {
     );
   }
 
+  // Filter groups by search query
+  const filteredGroups = groups.filter(group =>
+    group.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    group.subjectId?.nameUzb?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    group.teacherId?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 pb-20">
       <PageNavbar
@@ -159,6 +167,20 @@ export default function GroupsPage() {
         addButtonText="Guruh qo'shish"
         onAddClick={() => setShowForm(true)}
       />
+
+      {/* Search Input */}
+      {groups.length > 0 && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Guruh nomi, fan yoki o'qituvchini qidirish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+        </div>
+      )}
 
       <Dialog open={showForm} onClose={handleCloseForm}>
         <DialogHeader>
@@ -241,29 +263,43 @@ export default function GroupsPage() {
         </DialogContent>
       </Dialog>
 
-      {groups.length === 0 ? (
+      {filteredGroups.length === 0 ? (
         <Card className="border-2 border-dashed border-gray-300">
           <CardContent className="py-16">
-            <EmptyState
-              icon={Users}
-              title="Guruhlar yo'q"
-              description="Yangi guruh qo'shish uchun yuqoridagi tugmani bosing"
-              action={{
-                label: "Guruh qo'shish",
-                onClick: () => setShowForm(true)
-              }}
-            />
+            {groups.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Guruhlar yo'q"
+                description="Yangi guruh qo'shish uchun yuqoridagi tugmani bosing"
+                action={{
+                  label: "Guruh qo'shish",
+                  onClick: () => setShowForm(true)
+                }}
+              />
+            ) : (
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-10 h-10 text-gray-400" />
+                </div>
+                <p className="text-gray-600 mb-4">Qidiruv bo'yicha guruh topilmadi</p>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Tozalash
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {groups.map((group) => (
+          {filteredGroups.map((group) => (
             <Card 
               key={group._id} 
               className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden"
               onClick={() => navigate(`/custom/groups/${group._id}`)}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <CardContent className="p-6 relative">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="relative flex-shrink-0">

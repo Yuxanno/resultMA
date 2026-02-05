@@ -160,6 +160,12 @@ router.post('/:id/grade/:submissionId', authenticate, async (req: AuthRequest, r
       return res.status(404).json({ message: 'Topshiriq topilmadi' });
     }
 
+    // Get assignment to get subjectId
+    const assignment = await Assignment.findById(req.params.id);
+    if (!assignment) {
+      return res.status(404).json({ message: 'Topshiriq topilmadi' });
+    }
+
     submission.percentage = percentage;
     submission.notes = notes;
     submission.gradedAt = new Date();
@@ -168,6 +174,37 @@ router.post('/:id/grade/:submissionId', authenticate, async (req: AuthRequest, r
     }
 
     await submission.save();
+
+    // Add grade to student profile
+    const Student = (await import('../models/Student')).default;
+    const student = await Student.findById(submission.studentId);
+    if (student) {
+      // Check if grade already exists for this assignment
+      const existingGradeIndex = student.grades?.findIndex(
+        (g: any) => g.assignmentId?.toString() === req.params.id
+      );
+
+      const gradeData = {
+        assignmentId: assignment._id,
+        subjectId: assignment.subjectId,
+        percentage,
+        notes,
+        gradedAt: new Date()
+      };
+
+      if (existingGradeIndex !== undefined && existingGradeIndex >= 0) {
+        // Update existing grade
+        student.grades[existingGradeIndex] = gradeData as any;
+      } else {
+        // Add new grade
+        if (!student.grades) {
+          student.grades = [];
+        }
+        student.grades.push(gradeData as any);
+      }
+
+      await student.save();
+    }
 
     res.json({ 
       message: 'Baho qo\'yildi',

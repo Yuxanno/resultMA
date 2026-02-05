@@ -376,7 +376,6 @@ export default function TestsPage() {
                 className="h-full border-2 border-slate-200/50 hover:border-green-300 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/20 hover:-translate-y-2 overflow-hidden cursor-pointer"
                 onClick={() => handleCardClick(test)}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <CardContent className="p-4 sm:p-5 lg:p-6 relative">
                   {/* Icon & Actions */}
                   <div className="flex items-start justify-between mb-4">

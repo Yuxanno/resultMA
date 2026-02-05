@@ -103,42 +103,41 @@ export default function CreateAssignmentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-3xl mx-auto p-3 sm:p-4 space-y-3 animate-fade-in">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 mb-2">
           <Button
             variant="outline"
-            size="lg"
+            size="sm"
             onClick={() => navigate('/teacher/assignments')}
-            className="shadow-sm"
           >
-            <ArrowLeft className="w-5 h-5 mr-2" />
+            <ArrowLeft className="w-4 h-4 mr-1" />
             Orqaga
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
-                <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                <ClipboardList className="w-4 h-4 text-white" />
               </div>
               Yangi topshiriq yaratish
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs text-gray-600 mt-0.5">
               Qadam {step}/2
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {step === 1 && (
-            <Card className="border-0 shadow-soft">
-              <CardContent className="p-4 sm:p-6 lg:p-8">
-                <div className="space-y-6">
+            <Card className="border shadow-sm">
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-3">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">
+                    <h2 className="text-base font-bold text-gray-900 mb-1">
                       Topshiriq ma'lumotlari
                     </h2>
-                    <p className="text-gray-600 mb-6">
+                    <p className="text-xs text-gray-600 mb-3">
                       Topshiriq haqida asosiy ma'lumotlarni kiriting
                     </p>
                   </div>
@@ -149,21 +148,21 @@ export default function CreateAssignmentPage() {
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     required
                     placeholder="Masalan: 1-nazorat ishi"
-                    className="text-lg"
+                    className="h-9"
                   />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Select
                       label="Guruh"
                       value={formData.groupId}
                       onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
                       required
-                      className="text-lg"
+                      className="h-9"
                     >
                       <option value="">Tanlang</option>
                       {groups.map((g) => (
                         <option key={g._id} value={g._id}>
-                          {g.name} ({g.classNumber}-sinf)
+                          {g.name}
                         </option>
                       ))}
                     </Select>
@@ -173,7 +172,7 @@ export default function CreateAssignmentPage() {
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                       required
-                      className="text-lg"
+                      className="h-9"
                     >
                       {assignmentTypes.map((type) => (
                         <option key={type.value} value={type.value}>
@@ -188,7 +187,8 @@ export default function CreateAssignmentPage() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Topshiriq haqida qo'shimcha ma'lumot..."
-                    rows={4}
+                    rows={3}
+                    className="text-sm"
                   />
 
                   <Input
@@ -196,23 +196,23 @@ export default function CreateAssignmentPage() {
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="text-lg"
+                    className="h-9"
                   />
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Fayl yuklash (ixtiyoriy)
                     </label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <label className="flex-1">
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer">
-                          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">
-                            {uploading ? 'Yuklanmoqda...' : 'Fayl tanlash uchun bosing'}
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer">
+                          <Upload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                          <p className="text-xs text-gray-600">
+                            {uploading ? 'Yuklanmoqda...' : 'Fayl tanlash'}
                           </p>
                           {formData.fileUrl && (
-                            <p className="text-xs text-green-600 mt-2">
-                              ✓ Fayl yuklandi
+                            <p className="text-xs text-green-600 mt-1">
+                              ✓ Yuklandi
                             </p>
                           )}
                         </div>
@@ -226,20 +226,21 @@ export default function CreateAssignmentPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-6 border-t">
+                  <div className="flex gap-2 pt-3 border-t">
                     <Button 
                       type="button" 
                       onClick={handleNextStep}
-                      size="lg"
-                      className="shadow-medium"
+                      size="sm"
+                      className="h-9"
                     >
-                      Keyingi: Savollar qo'shish
+                      Keyingi qadam
                     </Button>
                     <Button 
                       type="button" 
                       variant="outline" 
-                      size="lg"
+                      size="sm"
                       onClick={() => navigate('/teacher/assignments')}
+                      className="h-9"
                     >
                       Bekor qilish
                     </Button>
@@ -250,15 +251,15 @@ export default function CreateAssignmentPage() {
           )}
 
           {step === 2 && (
-            <Card className="border-0 shadow-soft">
-              <CardContent className="p-4 sm:p-6 lg:p-8">
-                <div className="space-y-6">
+            <Card className="border shadow-sm">
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-3">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">
+                    <h2 className="text-base font-bold text-gray-900 mb-1">
                       Savollar
                     </h2>
-                    <p className="text-gray-600 mb-6">
-                      Topshiriq uchun savollar qo'shing yoki faylni yuklang
+                    <p className="text-xs text-gray-600 mb-3">
+                      Topshiriq uchun savollar qo'shing
                     </p>
                   </div>
 
@@ -268,22 +269,23 @@ export default function CreateAssignmentPage() {
                     onChange={(questions) => setFormData({ ...formData, questions })}
                   />
 
-                  <div className="flex gap-3 pt-6 border-t">
+                  <div className="flex gap-2 pt-3 border-t">
                     <Button 
                       type="button" 
                       variant="outline" 
-                      size="lg"
+                      size="sm"
                       onClick={() => setStep(1)}
+                      className="h-9"
                     >
                       Orqaga
                     </Button>
                     <Button 
                       type="submit" 
                       loading={loading}
-                      size="lg"
-                      className="shadow-medium"
+                      size="sm"
+                      className="h-9"
                     >
-                      <Save className="w-5 h-5 mr-2" />
+                      <Save className="w-4 h-4 mr-1" />
                       Yaratish
                     </Button>
                   </div>

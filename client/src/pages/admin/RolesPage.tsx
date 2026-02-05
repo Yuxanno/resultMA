@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/ui/Dialog';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/hooks/useToast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Plus, Shield, Edit2, Trash2, Check } from 'lucide-react';
 
 interface Role {
@@ -36,6 +37,12 @@ export default function RolesPage() {
     permissions: [] as string[]
   });
   const { success, error } = useToast();
+  const { hasPermission } = usePermissions();
+  
+  // Проверка прав доступа
+  const canCreate = hasPermission('create_roles');
+  const canUpdate = hasPermission('edit_roles');
+  const canDelete = hasPermission('delete_roles');
 
   useEffect(() => {
     fetchRoles();
@@ -172,11 +179,13 @@ export default function RolesPage() {
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Rollar</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Tizim rollarini boshqarish</p>
         </div>
-        <Button onClick={() => setShowForm(true)} fullWidth={false} className="sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Rol qo'shish</span>
-          <span className="sm:hidden">Qo'shish</span>
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setShowForm(true)} fullWidth={false} className="sm:w-auto">
+            <Plus className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Rol qo'shish</span>
+            <span className="sm:hidden">Qo'shish</span>
+          </Button>
+        )}
       </div>
 
       {/* Dialog */}
@@ -298,10 +307,12 @@ export default function RolesPage() {
             <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6 max-w-md mx-auto">
               Yangi rol qo'shish uchun yuqoridagi tugmani bosing
             </p>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Rol qo'shish
-            </Button>
+            {canCreate && (
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Rol qo'shish
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -314,20 +325,24 @@ export default function RolesPage() {
                     <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                     </div>
-                    {!role.isSystem && (
+                    {!role.isSystem && (canUpdate || canDelete) && (
                       <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEdit(role)}
-                          className="p-1.5 hover:bg-muted rounded-lg transition-colors"
-                        >
-                          <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(role._id)}
-                          className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive" />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            onClick={() => handleEdit(role)}
+                            className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(role._id)}
+                            className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

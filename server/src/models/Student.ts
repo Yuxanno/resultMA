@@ -9,6 +9,13 @@ export interface IStudent extends Document {
   subjectIds: mongoose.Types.ObjectId[];
   profileToken: string;
   isGraduated: boolean;
+  grades: Array<{
+    assignmentId: mongoose.Types.ObjectId;
+    subjectId: mongoose.Types.ObjectId;
+    percentage: number;
+    notes?: string;
+    gradedAt: Date;
+  }>;
   createdAt: Date;
 }
 
@@ -21,6 +28,13 @@ const StudentSchema = new Schema<IStudent>({
   subjectIds: [{ type: Schema.Types.ObjectId, ref: 'Subject' }],
   profileToken: { type: String, required: true, unique: true },
   isGraduated: { type: Boolean, default: false },
+  grades: [{
+    assignmentId: { type: Schema.Types.ObjectId, ref: 'Assignment' },
+    subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
+    percentage: { type: Number, required: true },
+    notes: String,
+    gradedAt: { type: Date, default: Date.now }
+  }],
   createdAt: { type: Date, default: Date.now }
 });
 
