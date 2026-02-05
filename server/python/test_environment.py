@@ -4,7 +4,7 @@ Test script to verify Python environment and dependencies
 """
 import sys
 import json
-
+        
 def test_environment():
     result = {
         'python_version': sys.version,

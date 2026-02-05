@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { 
@@ -46,6 +46,11 @@ export default function CustomRoleLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Закрыть мобильное меню при изменении маршрута
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
 

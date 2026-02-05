@@ -3,7 +3,7 @@
 QR Code Scanner for OMR Answer Sheets
 Supports multiple detection methods for robust QR code reading
 """
-
+        
 import cv2
 import json
 import sys
