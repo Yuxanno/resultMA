@@ -965,10 +965,9 @@ export default function StudentsPage() {
           {students.map((student) => (
             <Card 
               key={student._id} 
-              className="group hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden cursor-pointer"
+              className="group hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden cursor-pointer relative"
               onClick={() => setSelectedStudentId(student._id)}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <CardContent className="p-6 relative">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="relative flex-shrink-0">
