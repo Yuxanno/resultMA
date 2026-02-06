@@ -32,10 +32,10 @@ export const apiLimiter = rateLimit({
   }
 });
 
-// Strict limiter for authentication endpoints
+// Strict limiter for authentication endpoints (DISABLED)
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Увеличено с 5 до 10 попыток (более удобно для пользователей)
+  max: 10000, // Практически без ограничений
   skipSuccessfulRequests: true, // Don't count successful requests
   message: {
     error: 'Too many login attempts, please try again later.',
@@ -51,10 +51,10 @@ export const authLimiter = rateLimit({
   }
 });
 
-// Limiter for file uploads
+// Limiter for file uploads (DISABLED)
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // Увеличено с 20 до 50 загрузок в час
+  max: 10000, // Практически без ограничений
   message: {
     error: 'Too many file uploads, please try again later.',
     retryAfter: '1 hour'
@@ -69,10 +69,10 @@ export const uploadLimiter = rateLimit({
   }
 });
 
-// Limiter for OMR scanning (expensive operation)
+// Limiter for OMR scanning (DISABLED)
 export const omrLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100, // Увеличено с 50 до 100 сканирований в час
+  max: 10000, // Практически без ограничений
   message: {
     error: 'Too many scan requests, please try again later.',
     retryAfter: '1 hour'
@@ -87,10 +87,10 @@ export const omrLimiter = rateLimit({
   }
 });
 
-// Limiter for AI parsing (expensive operation)
+// Limiter for AI parsing (DISABLED)
 export const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 60, // Увеличено с 30 до 60 AI запросов в час
+  max: 10000, // Практически без ограничений
   message: {
     error: 'Too many AI parsing requests, please try again later.',
     retryAfter: '1 hour'
@@ -105,10 +105,10 @@ export const aiLimiter = rateLimit({
   }
 });
 
-// Более мягкий лимитер для batch операций
+// Более мягкий лимитер для batch операций (DISABLED)
 export const batchLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 batch запросов за 15 минут
+  max: 10000, // Практически без ограничений
   message: {
     error: 'Too many batch requests, please try again later.',
     retryAfter: '15 minutes'
