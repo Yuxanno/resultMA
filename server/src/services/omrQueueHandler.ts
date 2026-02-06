@@ -19,12 +19,17 @@ interface OMRResult {
   error?: string;
 }
 
+// Определяем базовую директорию сервера
+// __dirname в скомпилированном коде: /var/www/resultMA/server/dist/services
+// Поднимаемся на 2 уровня вверх: /var/www/resultMA/server
+const SERVER_ROOT = path.join(__dirname, '..', '..');
+
 /**
  * Обработка OMR изображения через Python скрипт
  */
 async function processOMRImage(data: OMRJobData): Promise<OMRResult> {
   return new Promise((resolve, reject) => {
-    const pythonScript = path.join(process.cwd(), 'server', 'python', 'omr_final_v2.py');
+    const pythonScript = path.join(SERVER_ROOT, 'python', 'omr_final_v2.py');
     const args = [pythonScript, data.imagePath];
 
     if (data.questionCount) {

@@ -87,8 +87,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Apply rate limiting to all API routes
 app.use('/api/', apiLimiter);
 
+// Определяем базовую директорию сервера
+// __dirname в скомпилированном коде: /var/www/resultMA/server/dist
+// Поднимаемся на 1 уровень вверх: /var/www/resultMA/server
+const SERVER_ROOT = path.join(__dirname, '..');
+
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(path.join(SERVER_ROOT, 'uploads')));
 
 // Request logging middleware
 app.use((req, res, next) => {

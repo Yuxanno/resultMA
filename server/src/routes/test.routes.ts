@@ -14,8 +14,13 @@ import { TestImportService } from '../services/testImportService';
 
 const router = express.Router();
 
+// Определяем базовую директорию сервера
+// __dirname в скомпилированном коде: /var/www/resultMA/server/dist/routes
+// Поднимаемся на 2 уровня вверх: /var/www/resultMA/server
+const SERVER_ROOT = path.join(__dirname, '..', '..');
+
 // Multer configuration for file uploads
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = path.join(SERVER_ROOT, 'uploads');
 
 // Создаем директорию если не существует
 if (!fs.existsSync(uploadDir)) {
@@ -338,7 +343,7 @@ router.post('/import', authenticate, upload.single('file'), async (req: AuthRequ
     // Используем абсолютный путь для надежности
     const absolutePath = path.isAbsolute(req.file.path) 
       ? req.file.path 
-      : path.join(process.cwd(), req.file.path);
+      : path.join(SERVER_ROOT, req.file.path);
     
     console.log('Absolute file path:', absolutePath);
 

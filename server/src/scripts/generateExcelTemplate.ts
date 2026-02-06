@@ -1,5 +1,21 @@
 import * as XLSX from 'xlsx';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Определяем базовую директорию сервера для ES модулей
+// Если это CommonJS (скомпилированный TypeScript), используем __dirname
+// Если это ES модуль, используем import.meta.url
+const __filename = typeof __dirname !== 'undefined' 
+  ? __filename 
+  : fileURLToPath(import.meta.url);
+const __dirnameResolved = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : dirname(__filename);
+
+// __dirname в скомпилированном коде: /var/www/resultMA/server/dist/scripts
+// Поднимаемся на 2 уровня вверх: /var/www/resultMA/server
+const SERVER_ROOT = path.join(__dirnameResolved, '..', '..');
 
 // Пример данных для направления "Iqtisod" + majburiy fanlar
 const exampleData = [
@@ -107,7 +123,7 @@ ws['!cols'] = [
 XLSX.utils.book_append_sheet(wb, ws, 'Iqtisod yo\'nalishi');
 
 // Сохраняем файл
-const outputPath = path.join(process.cwd(), 'uploads', 'student_import_template_example.xlsx');
+const outputPath = path.join(SERVER_ROOT, 'uploads', 'student_import_template_example.xlsx');
 XLSX.writeFile(wb, outputPath);
 
 console.log(`✅ Excel файл создан: ${outputPath}`);

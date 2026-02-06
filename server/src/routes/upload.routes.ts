@@ -8,7 +8,12 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+// Определяем базовую директорию сервера
+// __dirname в скомпилированном коде: /var/www/resultMA/server/dist/routes
+// Поднимаемся на 2 уровня вверх: /var/www/resultMA/server
+const SERVER_ROOT = path.join(__dirname, '..', '..');
+
+const uploadDir = path.join(SERVER_ROOT, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

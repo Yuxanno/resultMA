@@ -11,8 +11,13 @@ import { invalidateCache } from '../middleware/cache';
 const router = express.Router();
 const execAsync = promisify(exec);
 
+// Определяем базовую директорию сервера
+// __dirname в скомпилированном коде: /var/www/resultMA/server/dist/routes
+// Поднимаемся на 2 уровня вверх: /var/www/resultMA/server
+const SERVER_ROOT = path.join(__dirname, '..', '..');
+
 // Настройка multer для загрузки изображений
-const uploadDir = path.join(process.cwd(), 'uploads', 'omr');
+const uploadDir = path.join(SERVER_ROOT, 'uploads', 'omr');
 
 // Создаем директорию если не существует (синхронно)
 try {
@@ -103,7 +108,7 @@ router.post('/check-answers', authenticate, upload.single('image'), async (req, 
     
     try {
       // QR-scanner skriptini ishlatish
-      const qrScriptPath = path.join(process.cwd(), 'server', 'python', 'qr_scanner.py');
+      const qrScriptPath = path.join(SERVER_ROOT, 'python', 'qr_scanner.py');
       
       const pythonCmd = process.env.PYTHON_PATH || 
                        (process.platform === 'win32' ? 'python' : 'python3');
@@ -297,7 +302,7 @@ router.post('/check-answers', authenticate, upload.single('image'), async (req, 
     console.log('🔍 2-bosqich: Javoblarni aniqlash...');
 
     // 2. Javoblarni aniqlash (omr_color.py - rangli blanklar uchun)
-    const pythonScript = path.join(process.cwd(), 'server', 'python', 'omr_color.py');
+    const pythonScript = path.join(SERVER_ROOT, 'python', 'omr_color.py');
     
     // Python3 ni ishlatish (ko'p Linux serverlarida python3 bo'ladi)
     // Allow override via environment variable for production
@@ -900,7 +905,7 @@ router.get('/results/:testId', authenticate, async (req, res) => {
 router.delete('/image/:filename', authenticate, async (req, res) => {
   try {
     const { filename } = req.params;
-    const imagePath = path.join(process.cwd(), 'uploads', 'omr', filename);
+    const imagePath = path.join(SERVER_ROOT, 'uploads', 'omr', filename);
     
     await fs.unlink(imagePath);
     
