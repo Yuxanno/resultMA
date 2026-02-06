@@ -698,8 +698,14 @@ router.post('/check-answers', authenticate, upload.single('image'), async (req, 
       throw new Error('Invalid result from Python script');
     }
     
-    // Добавляем путь к изображению в ответ
+    // Добавляем пути к изображениям в ответ
     result.uploaded_image = req.file.filename;
+    
+    // Если есть обработанное изображение, добавляем полный путь для доступа через веб
+    if (result.annotated_image) {
+      result.annotated_image_url = `/uploads/omr/${result.annotated_image}`;
+      console.log('📸 Annotated image URL:', result.annotated_image_url);
+    }
     
     console.log('📤 Sending response to client...');
     console.log('📤 Response keys:', Object.keys(result));
