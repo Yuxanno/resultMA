@@ -29,6 +29,7 @@ import './models/StudentTestConfig';
 import './models/StudentActivityLog';
 import './models/Upload';
 import './models/Role';
+import './models/Application';
 
 import authRoutes from './routes/auth.routes';
 import branchRoutes from './routes/branch.routes';
@@ -55,6 +56,7 @@ import observerRoutes from './routes/observer.routes';
 import testResultRoutes from './routes/testResult.routes';
 import studentActivityLogRoutes from './routes/studentActivityLog.routes';
 import healthRoutes from './routes/health.routes';
+import applicationRoutes from './routes/application.routes';
 
 // Load environment variables
 dotenv.config();
@@ -117,6 +119,7 @@ app.use('/api/health', healthRoutes);
 
 // Routes with specific rate limiters
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/applications', applicationRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/directions', directionRoutes);

@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   GraduationCap,
   ChevronRight,
-  Shield
+  Shield,
+  FileText
 } from 'lucide-react';
 import { Loading } from '../components/ui/Loading';
 
@@ -26,9 +27,11 @@ const StatisticsPage = lazy(() => import('../pages/admin/StatisticsPage'));
 const DashboardPage = lazy(() => import('../pages/admin/DashboardPage'));
 const BranchStatisticsPage = lazy(() => import('../pages/admin/BranchStatisticsPage'));
 const RolesPage = lazy(() => import('../pages/admin/RolesPage'));
+const ApplicationsPage = lazy(() => import('../pages/admin/ApplicationsPage'));
 
 const menuItems = [
   { path: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard },
+  { path: '/admin/applications', label: 'Qabul arizalari', icon: FileText },
   { path: '/admin/branches', label: 'Filiallar', icon: Building2 },
   { path: '/admin/subjects', label: 'Fanlar', icon: BookOpen },
   { path: '/admin/directions', label: "Yo'nalishlar", icon: Compass },
@@ -294,6 +297,7 @@ export default function SuperAdminLayout() {
             <Routes>
               <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/applications" element={<ApplicationsPage />} />
               <Route path="/branches" element={<BranchesPage />} />
               <Route path="/branches/:id/statistics" element={<BranchStatisticsPage />} />
               <Route path="/subjects" element={<SubjectsPage />} />

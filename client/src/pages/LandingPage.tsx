@@ -39,11 +39,33 @@ export default function LandingPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    setShowModal(false);
-    alert('Arizangiz qabul qilindi! Tez orada siz bilan bog\'lanamiz.');
+    
+    try {
+      const response = await fetch('/api/applications/public', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          phone: formData.phone,
+          grade: formData.grade,
+        }),
+      });
+
+      if (response.ok) {
+        setShowModal(false);
+        setFormData({ fullName: '', phone: '', grade: '' });
+        alert('Arizangiz qabul qilindi! Tez orada siz bilan bog\'lanamiz.');
+      } else {
+        alert('Xatolik yuz berdi. Iltimos, qaytadan urinib ko\'ring.');
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      alert('Xatolik yuz berdi. Iltimos, qaytadan urinib ko\'ring.');
+    }
   };
 
   return (
@@ -55,9 +77,11 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <GraduationCap className="w-6 h-6 text-white" />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="Math Academy Logo" 
+                className="w-10 h-10 object-contain"
+              />
               <div className="flex flex-col">
                 <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Math Academy
@@ -562,9 +586,11 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div>
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                  <GraduationCap className="w-6 h-6 text-white" />
-                </div>
+                <img 
+                  src="/logo.png" 
+                  alt="Math Academy Logo" 
+                  className="w-10 h-10 object-contain"
+                />
                 <span className="text-xl font-bold">Math Academy</span>
               </div>
               <p className="text-gray-400 text-sm">
