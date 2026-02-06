@@ -4,6 +4,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { authenticate } from '../middleware/auth';
 import { invalidateCache } from '../middleware/cache';
 
@@ -12,6 +13,14 @@ const execAsync = promisify(exec);
 
 // Настройка multer для загрузки изображений
 const uploadDir = path.join(process.cwd(), 'uploads', 'omr');
+
+// Создаем директорию если не существует (синхронно)
+try {
+  fsSync.mkdirSync(uploadDir, { recursive: true });
+  console.log('✅ Upload directory ready:', uploadDir);
+} catch (err) {
+  console.error('❌ Failed to create upload directory:', err);
+}
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);

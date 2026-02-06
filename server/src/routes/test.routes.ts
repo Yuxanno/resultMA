@@ -9,12 +9,20 @@ import { UserRole } from '../models/User';
 import { cacheMiddleware, invalidateCache } from '../middleware/cache';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { TestImportService } from '../services/testImportService';
 
 const router = express.Router();
 
 // Multer configuration for file uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
+
+// Создаем директорию если не существует
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('✅ Upload directory ready:', uploadDir);
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
