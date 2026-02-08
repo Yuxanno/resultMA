@@ -23,42 +23,27 @@ export default function EditBlockTestPage() {
   const loadBlockTest = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Loading block test:', id);
       const { data } = await api.get(`/block-tests/${id}`);
-      console.log('📦 Received block test data:', data);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
-      const testDate = new Date(data.date).toISOString().split('T')[0];
-      
-      // Фильтруем тесты по классу и дате
-      const sameGroupTests = allTests.filter((t: any) => {
-        const tDate = new Date(t.date).toISOString().split('T')[0];
-        return t.classNumber === data.classNumber && tDate === testDate;
-      });
-      
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
-      
-      // Объединяем все предметы из всех тестов
+      // Используем данные, которые уже пришли с сервера
       const allSubjects: any[] = [];
-      sameGroupTests.forEach((test: any) => {
-        test.subjectTests?.forEach((st: any) => {
+      
+      if (data.subjectTests && Array.isArray(data.subjectTests)) {
+        data.subjectTests.forEach((st: any) => {
           if (st.subjectId) {
             allSubjects.push({
               ...st,
-              testId: test._id // Сохраняем ID теста для каждого предмета
+              testId: data._id
             });
           }
         });
-      });
+      }
       
-      console.log('📝 Total subjects:', allSubjects.length);
-      
-      // Создаем объединенный блок-тест для отображения
+      // Создаем блок-тест для отображения
       const mergedBlockTest = {
         ...data,
         subjectTests: allSubjects,
-        allTestIds: sameGroupTests.map((t: any) => t._id)
+        allTestIds: [data._id]
       };
       
       setBlockTest(mergedBlockTest);
@@ -140,23 +125,15 @@ export default function EditBlockTestPage() {
         return;
       }
       
-      console.log(`🗑️ Deleting subject at index ${originalSubjectIndex} from test ${testId}`);
-      console.log(`   Subject: ${subjectName}, Questions: ${questionCount}`);
-      
       // Если в тесте только один предмет, удаляем весь тест
       if (testData.subjectTests.length === 1) {
         await api.delete(`/block-tests/${testId}`);
-        console.log(`✅ Deleted entire test ${testId}`);
         alert(`${subjectName} fani va uning testi muvaffaqiyatli o'chirildi`);
       } else {
         // Удаляем только КОНКРЕТНЫЙ предмет по индексу
         const updatedSubjectTests = testData.subjectTests.filter((_: any, idx: number) => 
           idx !== originalSubjectIndex
         );
-        
-        console.log(`📝 Updating test ${testId}:`);
-        console.log(`   Before: ${testData.subjectTests.length} subjects`);
-        console.log(`   After: ${updatedSubjectTests.length} subjects`);
         
         await api.put(`/block-tests/${testId}`, {
           subjectTests: updatedSubjectTests
@@ -165,34 +142,10 @@ export default function EditBlockTestPage() {
         alert(`${subjectName} fani muvaffaqiyatli o'chirildi (${questionCount} ta savol)`);
       }
       
-      // Автоматически перегенерируем варианты для всех студентов класса
-      try {
-        console.log('🔀 Regenerating variants after subject deletion...');
-        
-        // Получаем всех студентов класса
-        const { data: students } = await api.get('/students', {
-          params: { classNumber: blockTest.classNumber }
-        });
-        
-        if (students.length > 0) {
-          const studentIds = students.map((s: any) => s._id);
-          
-          // Генерируем новые варианты
-          await api.post(`/block-tests/${id}/generate-variants`, {
-            studentIds
-          });
-          
-          console.log('✅ Variants regenerated successfully');
-        }
-      } catch (variantError) {
-        console.error('Error regenerating variants:', variantError);
-        // Не показываем ошибку пользователю, так как основная операция прошла успешно
-      }
-      
-      // Reload block test
+      // Reload block test (без регенерации вариантов - это слишком медленно)
       await loadBlockTest();
     } catch (error) {
-      console.error('Error deleting subject:', error);
+      console.error('❌ Error deleting subject:', error);
       alert('Fanni o\'chirishda xatolik yuz berdi');
     } finally {
       setSaving(false);

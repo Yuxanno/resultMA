@@ -4,7 +4,6 @@ import Student from '../models/Student';
 import StudentVariant from '../models/StudentVariant';
 import StudentTestConfig from '../models/StudentTestConfig';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { cacheMiddleware, invalidateCache } from '../middleware/cache';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -39,19 +38,11 @@ router.post('/import/confirm', authenticate, async (req: AuthRequest, res) => {
     });
 
     if (blockTest) {
-      // ВСЕГДА добавляем новый тест как отдельный предмет
-      // Не проверяем дубликаты - каждый импорт создает новую запись
       blockTest.subjectTests.push({
         subjectId,
         questions
       });
-      console.log(`Added new test for subject ${subjectId} to existing block test ${blockTest._id}`);
-      console.log(`Total tests in block: ${blockTest.subjectTests.length}`);
-
       await blockTest.save();
-      
-      // Инвалидируем кэш блок-тестов
-      await invalidateCache('/api/block-tests');
     } else {
       // Создаем новый блок-тест
       blockTest = new BlockTest({
@@ -69,10 +60,6 @@ router.post('/import/confirm', authenticate, async (req: AuthRequest, res) => {
       });
 
       await blockTest.save();
-      console.log('Created new block test:', blockTest._id);
-      
-      // Инвалидируем кэш блок-тестов
-      await invalidateCache('/api/block-tests');
     }
 
     res.status(201).json({ 
@@ -116,9 +103,6 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     await blockTest.save();
     console.log('Created new block test:', blockTest._id);
 
-    // Инвалидируем кэш блок-тестов
-    await invalidateCache('/api/block-tests');
-
     res.status(201).json({ 
       message: 'Blok test muvaffaqiyatli yaratildi',
       blockTest
@@ -129,30 +113,72 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/', authenticate, cacheMiddleware(180), async (req: AuthRequest, res) => {
+router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
-    const blockTests = await BlockTest.find({ branchId: req.user?.branchId })
-      .populate('subjectTests.subjectId', 'nameUzb nameRu')
-      .select('classNumber date periodMonth periodYear subjectTests studentConfigs createdAt')
+    const fields = req.query.fields as string;
+    const classNumber = req.query.classNumber as string;
+    const date = req.query.date as string;
+    
+    // Базовый фильтр по филиалу
+    const filter: any = { branchId: req.user?.branchId };
+    
+    // Добавляем фильтр по классу если указан
+    if (classNumber) {
+      filter.classNumber = parseInt(classNumber);
+    }
+    
+    // Добавляем фильтр по дате если указана
+    if (date) {
+      // Фильтруем по дате (начало и конец дня)
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999);
+      
+      filter.date = {
+        $gte: startDate,
+        $lte: endDate
+      };
+    }
+    
+    let query = BlockTest.find(filter);
+    
+    // Поддержка разных уровней детализации
+    if (fields === 'minimal') {
+      // Минимальные данные для списка
+      query = query.select('classNumber date periodMonth periodYear createdAt _id');
+    } else if (fields === 'full') {
+      // Полные данные с предметами
+      query = query.populate('subjectTests.subjectId', 'nameUzb nameRu');
+    } else if (fields === 'basic') {
+      // Базовые данные с предметами но без вопросов
+      query = query.select('classNumber date periodMonth periodYear createdAt _id subjectTests.subjectId')
+        .populate('subjectTests.subjectId', 'nameUzb nameRu');
+    } else {
+      // По умолчанию - минимальные данные
+      query = query.select('classNumber date periodMonth periodYear createdAt _id');
+    }
+    
+    const blockTests = await query
       .sort({ date: -1 })
       .lean()
       .exec();
     
-    console.log(`Found ${blockTests.length} block tests`);
+    console.log(`✅ Found ${blockTests.length} block tests (fields: ${fields || 'minimal'}, class: ${classNumber || 'all'}, date: ${date || 'all'})`);
     
-    const testsWithCounts = blockTests.map(test => ({
-      ...test,
-      studentCount: test.studentConfigs?.length || 0
-    }));
+    // Отключаем все виды кэширования
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
-    res.json(testsWithCounts);
+    res.json(blockTests);
   } catch (error) {
-    console.error('Error fetching block tests:', error);
+    console.error('❌ Error fetching block tests:', error);
     res.status(500).json({ message: 'Server xatosi' });
   }
 });
 
-router.get('/:id', authenticate, cacheMiddleware(300), async (req: AuthRequest, res) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res) => {
   try {
     console.log(`Fetching block test by ID: ${req.params.id}`);
     
@@ -167,6 +193,11 @@ router.get('/:id', authenticate, cacheMiddleware(300), async (req: AuthRequest, 
     }
     
     console.log(`Found block test: Class ${blockTest.classNumber}, ${blockTest.subjectTests.length} subjects`);
+    
+    // Отключаем кэширование
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     res.json(blockTest);
   } catch (error) {
@@ -204,9 +235,6 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
       console.log(`Updated ${subjectTests.length} subjects`);
     }
     
-    // Инвалидируем кэш блок-тестов
-    await invalidateCache('/api/block-tests');
-    
     res.json({ message: 'Blok test yangilandi', blockTest });
   } catch (error) {
     console.error('Error updating block test:', error);
@@ -229,9 +257,6 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
     }
     
     await BlockTest.findByIdAndDelete(req.params.id);
-    
-    // Инвалидируем кэш блок-тестов
-    await invalidateCache('/api/block-tests');
     
     res.json({ message: 'Blok test o\'chirildi' });
   } catch (error) {
@@ -388,11 +413,6 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
         // Update the correct answer to the new letter
         shuffledQuestion.correctAnswer = letters[newIndex];
         shuffledQuestion.variants = reorderedVariants;
-        
-        // Log if answer changed
-        if (question.correctAnswer !== shuffledQuestion.correctAnswer) {
-          console.log(`✅ Shuffled: ${question.correctAnswer} → ${shuffledQuestion.correctAnswer}`);
-        }
       }
       
       return shuffledQuestion;
@@ -402,30 +422,32 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
     const BATCH_SIZE = 50;
     const variants = [];
     
-    console.log(`📊 Processing ${studentIds.length} students in batches of ${BATCH_SIZE}`);
+    // Загружаем ВСЕ конфигурации студентов ОДНИМ запросом
+    const studentConfigs = await StudentTestConfig.find({ 
+      studentId: { $in: studentIds } 
+    }).populate('subjects.subjectId').lean();
+    
+    // Создаем Map для быстрого доступа по studentId
+    const configMap = new Map();
+    studentConfigs.forEach(config => {
+      configMap.set(config.studentId.toString(), config);
+    });
     
     for (let i = 0; i < studentIds.length; i += BATCH_SIZE) {
       const batchStudentIds = studentIds.slice(i, i + BATCH_SIZE);
-      console.log(`📦 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(studentIds.length / BATCH_SIZE)}`);
       
       const batchVariants = [];
       
       for (const studentId of batchStudentIds) {
       const variantCode = uuidv4().substring(0, 8).toUpperCase();
       
-      // ВАЖНО: Получаем конфигурацию студента (какие предметы он выбрал)
-      const studentConfig = await StudentTestConfig.findOne({ studentId })
-        .populate('subjects.subjectId');
+      const studentConfig = configMap.get(studentId.toString());
       
       if (!studentConfig) {
-        console.log(`⚠️ Student ${studentId}: No config found, skipping`);
         continue; // Пропускаем студента без конфигурации
       }
       
-      console.log(`📋 Student ${studentId}: Config found with ${studentConfig.subjects.length} subjects`);
-      
-      // Shuffle questions WITHIN each subject (not across subjects)
-      // ТОЛЬКО для предметов, которые выбрал студент!
+      // Shuffle questions WITHIN each subject
       const shuffledQuestions: any[] = [];
       
       for (const subjectConfig of studentConfig.subjects) {
@@ -438,14 +460,11 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
         );
         
         if (!subjectTest || !subjectTest.questions || subjectTest.questions.length === 0) {
-          console.log(`⚠️ Subject ${subjectId}: No questions found in block test`);
           continue;
         }
         
         // Берем только нужное количество вопросов
         const questionsToTake = Math.min(questionCount, subjectTest.questions.length);
-        
-        console.log(`📝 Subject ${(subjectConfig.subjectId as any).nameUzb}: Taking ${questionsToTake} questions`);
         
         // Shuffle questions within this subject
         const subjectQuestions = shuffleArray([...subjectTest.questions]).slice(0, questionsToTake);
@@ -453,26 +472,11 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
         // Shuffle answer variants for each question
         for (const question of subjectQuestions) {
           const shuffled = shuffleVariants(question);
-          // Сохраняем subjectId для каждого вопроса
           shuffled.subjectId = subjectTest.subjectId;
           shuffledQuestions.push(shuffled);
         }
       }
       
-      console.log(`📊 Student ${studentId}: Total shuffled questions: ${shuffledQuestions.length}`);
-      
-      // Log first 3 questions to verify shuffling
-      if (shuffledQuestions.length > 0) {
-        console.log('🔀 First 3 shuffled questions:', shuffledQuestions.slice(0, 3).map((q, i) => ({
-          index: i,
-          text: q.text?.substring(0, 50),
-          shuffledAnswer: q.correctAnswer,
-          hasVariants: !!q.variants
-        })));
-      }
-      
-      // Simple QR payload - just variant code (easy to scan)
-      // Full data can be retrieved via API using this code
       const qrPayload = variantCode;
 
       const variant = new StudentVariant({
@@ -481,7 +485,7 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
         studentId,
         variantCode,
         qrPayload,
-        shuffledQuestions // Store shuffled questions with shuffled variants
+        shuffledQuestions
       });
 
         batchVariants.push(variant);
@@ -491,11 +495,8 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
       if (batchVariants.length > 0) {
         await StudentVariant.insertMany(batchVariants);
         variants.push(...batchVariants);
-        console.log(`✅ Saved batch: ${batchVariants.length} variants`);
       }
     }
-
-    console.log(`✅ Generated ${variants.length} variants with shuffled questions (within each subject)`);
 
     res.json({ 
       message: 'Variantlar yaratildi', 

@@ -33,9 +33,7 @@ export default function TeachersPage() {
 
   const fetchTeachers = async () => {
     try {
-      console.log('Fetching teachers...');
       const { data } = await api.get('/teachers');
-      console.log('Teachers fetched:', data);
       setTeachers(data);
     } catch (err: any) {
       console.error('Error fetching teachers:', err);
@@ -55,13 +53,11 @@ export default function TeachersPage() {
     
     setLoading(true);
     try {
-      console.log('Saving teacher:', formData);
       if (editingTeacher) {
         await api.put(`/teachers/${editingTeacher._id}`, formData);
         success('O\'qituvchi muvaffaqiyatli yangilandi!');
       } else {
-        const response = await api.post('/teachers', formData);
-        console.log('Teacher created response:', response.data);
+        await api.post('/teachers', formData);
         success('O\'qituvchi muvaffaqiyatli qo\'shildi!');
       }
       setFormData({ username: '', password: '', fullName: '', phone: '' });

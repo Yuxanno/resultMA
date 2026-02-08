@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Upload, X, CheckCircle, AlertCircle, Loader2, ArrowLeft, ImagePlus } from 'lucide-react';
 import api from '@/lib/api';
+import { useImportBlockTest, useGenerateVariants } from '@/hooks/useBlockTests';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { convertLatexToTiptapJson } from '@/lib/latexUtils';
 
@@ -16,6 +17,11 @@ interface ParsedQuestion {
 
 export default function ImportBlockTestPage() {
   const navigate = useNavigate();
+  
+  // React Query mutations
+  const importBlockTestMutation = useImportBlockTest();
+  const generateVariantsMutation = useGenerateVariants();
+  
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([]);
@@ -109,28 +115,41 @@ export default function ImportBlockTestPage() {
     setError('');
     
     try {
-      const { data: savedBlockTest } = await api.post('/block-tests/import/confirm', {
-        questions: parsedQuestions,
+      // Преобразуем вопросы: image -> imageUrl для совместимости с моделью
+      const questionsFormatted = parsedQuestions.map(q => ({
+        ...q,
+        imageUrl: q.image, // Переименовываем image в imageUrl
+        image: undefined // Удаляем старое поле
+      }));
+      
+      // Используем React Query mutation
+      const savedBlockTest = await importBlockTestMutation.mutateAsync({
+        questions: questionsFormatted,
         classNumber: parseInt(classNumber),
         subjectId: selectedSubjectId,
         periodMonth,
         periodYear,
       });
       
+      // Загружаем студентов и генерируем варианты
       const { data: students } = await api.get('/students', {
         params: { classNumber: parseInt(classNumber) }
       });
       
       if (students.length > 0) {
         const studentIds = students.map((s: any) => s._id);
-        await api.post(`/block-tests/${savedBlockTest.blockTest._id}/generate-variants`, {
+        
+        await generateVariantsMutation.mutateAsync({
+          testId: savedBlockTest.blockTest._id,
           studentIds
         });
       }
       
       setStep('complete');
+      
+      // Перенаправляем с флагом refresh (React Query автоматически обновит кэш)
       setTimeout(() => {
-        navigate('/teacher/block-tests');
+        navigate('/teacher/block-tests', { state: { refresh: true } });
       }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Saqlashda xatolik');
@@ -195,16 +214,28 @@ export default function ImportBlockTestPage() {
     setParsedQuestions([...parsedQuestions, newQuestion]);
   };
 
-  const handleImageUpload = (questionIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (questionIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const updated = [...parsedQuestions];
-        updated[questionIndex].image = reader.result as string;
-        setParsedQuestions(updated);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    try {
+      console.log('🔄 Uploading image to server...');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const { data } = await api.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      console.log('✅ Image uploaded:', data.path);
+      
+      const updated = [...parsedQuestions];
+      updated[questionIndex].image = data.path; // Сохраняем путь к файлу
+      setParsedQuestions(updated);
+    } catch (error) {
+      console.error('❌ Error uploading image:', error);
+      alert('Rasmni yuklashda xatolik');
     }
   };
 

@@ -58,8 +58,8 @@ import studentActivityLogRoutes from './routes/studentActivityLog.routes';
 import healthRoutes from './routes/health.routes';
 import applicationRoutes from './routes/application.routes';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from server/.env
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Validate environment variables
 const env = validateEnv();

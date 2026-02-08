@@ -37,7 +37,10 @@ api.interceptors.response.use(
                            error.config?.url?.includes('/student-test-configs/');
     
     if (!is404ForConfigs && import.meta.env.DEV) {
-      console.error('API Error:', error.config?.url, error.response?.status, error.response?.data);
+      const url = error.config?.url || 'unknown';
+      const status = error.response?.status || 'no response';
+      const data = error.response?.data || error.message || 'unknown error';
+      console.error('API Error:', url, status, data);
     }
     
     // Редирект на логин только если пользователь уже был авторизован

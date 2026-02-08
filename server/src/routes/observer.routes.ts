@@ -57,12 +57,13 @@ router.get('/statistics', authenticate, requirePermission('view_statistics'), as
     }
     
     const [groups, students, tests, assignments] = await Promise.all([
-      Group.find(filter).populate('branchId').populate('subjectId').populate('teacherId'),
-      Student.find(filter).populate('branchId'),
-      Test.find(filter.branchId ? { createdBy: req.user?.id } : {}).populate('subjectId'),
+      Group.find(filter).populate('branchId').populate('subjectId').populate('teacherId').lean(),
+      Student.find(filter).populate('branchId').lean(),
+      Test.find(filter.branchId ? { createdBy: req.user?.id } : {}).populate('subjectId').lean(),
       Assignment.find(filter.branchId ? { createdBy: req.user?.id } : {})
         .populate('testId')
         .populate('groupId')
+        .lean()
     ]);
     
     res.json({
@@ -92,7 +93,8 @@ router.get('/groups', authenticate, requirePermission('view_groups'), async (req
       .populate('branchId')
       .populate('subjectId')
       .populate('teacherId')
-      .sort({ name: 1 });
+      .sort({ name: 1 })
+      .lean();
     
     res.json(groups);
   } catch (error: any) {

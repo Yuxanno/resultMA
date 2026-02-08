@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +23,11 @@ export default function CreateBlockTestPage() {
     subjectId: '',
     questions: [] as any[]
   });
+
+  // Memoize onChange handler to prevent infinite re-renders
+  const handleQuestionsChange = useCallback((questions: any[]) => {
+    setFormData(prev => ({ ...prev, questions }));
+  }, []);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -221,7 +226,7 @@ export default function CreateBlockTestPage() {
 
                   <TestEditor
                     questions={formData.questions}
-                    onChange={(questions) => setFormData({ ...formData, questions })}
+                    onChange={handleQuestionsChange}
                   />
 
                   <div className="flex gap-3 pt-6 border-t">

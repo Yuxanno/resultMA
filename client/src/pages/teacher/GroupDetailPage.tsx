@@ -92,7 +92,6 @@ export default function GroupDetailPage() {
           classNumber: group.classNumber
         }
       });
-      console.log('All students with subject:', data);
       setAllStudents(data);
     } catch (err) {
       console.error('Error fetching all students:', err);

@@ -142,7 +142,7 @@ export default function ApplicationsPage() {
       rejected: 'Rad etildi',
     };
 
-    return <Badge variant={variants[status]}>{labels[status]}</Badge>;
+    return <Badge variant={variants[status]} size="sm">{labels[status]}</Badge>;
   };
 
   const getStatusIcon = (status: string) => {
@@ -155,167 +155,293 @@ export default function ApplicationsPage() {
     return icons[status];
   };
 
+  const filteredApplications = applicationsData?.applications?.filter((app: Application) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      app.fullName.toLowerCase().includes(query) ||
+      app.phone.includes(query) ||
+      app.grade.includes(query)
+    );
+  }) || [];
+
   return (
-    <div className="space-y-6">
-      {/* Header with Search */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-4">
+    <div className="space-y-6 pb-8">
+      {/* Navbar-style Header */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-200/50 p-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          {/* Left side - Title and Icon */}
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <FileText className="w-6 h-6 text-blue-600" />
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
+              <FileText className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Qabul arizalari</h1>
-              <p className="text-sm text-gray-500">Landing sahifasidan kelgan arizalar</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Qabul arizalari</h1>
+              <p className="text-sm text-gray-600 mt-1">Landing sahifasidan kelgan arizalar</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+          {/* Right side - Search and Refresh Button */}
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            {/* Search Bar */}
+            <div className="relative flex-1 lg:w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Qidirish..."
+                placeholder="Ism, telefon yoki sinf bo'yicha qidirish..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
+                className="pl-12 h-12 rounded-full bg-white border-gray-200/50"
               />
             </div>
-            
-            <Select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-40"
-            >
-              <option value="all">Barchasi</option>
-              <option value="pending">Kutilmoqda</option>
-              <option value="contacted">Bog'lanildi</option>
-              <option value="accepted">Qabul qilindi</option>
-              <option value="rejected">Rad etildi</option>
-            </Select>
-            
+
+            {/* Refresh Button */}
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => refetch()}
-              className="p-2"
+              className="group flex-shrink-0 w-12 h-12 rounded-full p-0"
               title="Yangilash"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards as Filters - Glassmorphism Style */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Kutilmoqda</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          {/* Barchasi (All) Card */}
+          <button
+            onClick={() => setSelectedStatus('all')}
+            className={`group text-left p-5 rounded-3xl transition-all duration-300 backdrop-blur-sm border ${
+              selectedStatus === 'all'
+                ? 'bg-gray-500/20 border-gray-500/30 shadow-lg shadow-gray-500/10 scale-[1.02]'
+                : 'bg-white/80 border-gray-200/50 hover:shadow-md hover:scale-[1.01] hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-11 h-11 rounded-3xl flex items-center justify-center transition-all ${
+                selectedStatus === 'all'
+                  ? 'bg-gray-500/30 backdrop-blur-sm'
+                  : 'bg-gray-50 group-hover:scale-110'
+              }`}>
+                <FileText className={`w-6 h-6 ${
+                  selectedStatus === 'all' ? 'text-gray-700' : 'text-gray-600'
+                }`} />
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
+              <span className={`text-3xl font-bold ${
+                selectedStatus === 'all' ? 'text-gray-700' : 'text-gray-600'
+              }`}>{stats.total}</span>
             </div>
-          </Card>
+            <p className={`text-sm font-medium ${
+              selectedStatus === 'all' ? 'text-gray-800' : 'text-gray-600'
+            }`}>Barchasi</p>
+            <div className={`mt-2 h-1 rounded-full overflow-hidden ${
+              selectedStatus === 'all' ? 'bg-gray-500/20' : 'bg-gray-100'
+            }`}>
+              <div className={`h-full rounded-full ${
+                selectedStatus === 'all' ? 'bg-gray-600' : 'bg-gray-500'
+              }`} style={{ width: '100%' }}></div>
+            </div>
+          </button>
 
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Bog'lanildi</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.contacted}</p>
+          <button
+            onClick={() => setSelectedStatus('pending')}
+            className={`group text-left p-5 rounded-3xl transition-all duration-300 backdrop-blur-sm border ${
+              selectedStatus === 'pending'
+                ? 'bg-yellow-500/20 border-yellow-500/30 shadow-lg shadow-yellow-500/10 scale-[1.02]'
+                : 'bg-white/80 border-gray-200/50 hover:shadow-md hover:scale-[1.01] hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-11 h-11 rounded-3xl flex items-center justify-center transition-all ${
+                selectedStatus === 'pending'
+                  ? 'bg-yellow-500/30 backdrop-blur-sm'
+                  : 'bg-yellow-50 group-hover:scale-110'
+              }`}>
+                <Clock className={`w-6 h-6 ${
+                  selectedStatus === 'pending' ? 'text-yellow-700' : 'text-yellow-600'
+                }`} />
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Phone className="w-6 h-6 text-blue-600" />
-              </div>
+              <span className={`text-3xl font-bold ${
+                selectedStatus === 'pending' ? 'text-yellow-700' : 'text-yellow-600'
+              }`}>{stats.pending}</span>
             </div>
-          </Card>
+            <p className={`text-sm font-medium ${
+              selectedStatus === 'pending' ? 'text-yellow-800' : 'text-gray-600'
+            }`}>Kutilmoqda</p>
+            <div className={`mt-2 h-1 rounded-full overflow-hidden ${
+              selectedStatus === 'pending' ? 'bg-yellow-500/20' : 'bg-gray-100'
+            }`}>
+              <div className={`h-full rounded-full ${
+                selectedStatus === 'pending' ? 'bg-yellow-600' : 'bg-yellow-500'
+              }`} style={{ width: `${(stats.pending / (stats.total || 1)) * 100}%` }}></div>
+            </div>
+          </button>
 
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Qabul qilindi</p>
-                <p className="text-2xl font-bold text-green-600">{stats.accepted}</p>
+          <button
+            onClick={() => setSelectedStatus('contacted')}
+            className={`group text-left p-5 rounded-3xl transition-all duration-300 backdrop-blur-sm border ${
+              selectedStatus === 'contacted'
+                ? 'bg-blue-500/20 border-blue-500/30 shadow-lg shadow-blue-500/10 scale-[1.02]'
+                : 'bg-white/80 border-gray-200/50 hover:shadow-md hover:scale-[1.01] hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-11 h-11 rounded-3xl flex items-center justify-center transition-all ${
+                selectedStatus === 'contacted'
+                  ? 'bg-blue-500/30 backdrop-blur-sm'
+                  : 'bg-blue-50 group-hover:scale-110'
+              }`}>
+                <Phone className={`w-6 h-6 ${
+                  selectedStatus === 'contacted' ? 'text-blue-700' : 'text-blue-600'
+                }`} />
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
+              <span className={`text-3xl font-bold ${
+                selectedStatus === 'contacted' ? 'text-blue-700' : 'text-blue-600'
+              }`}>{stats.contacted}</span>
             </div>
-          </Card>
+            <p className={`text-sm font-medium ${
+              selectedStatus === 'contacted' ? 'text-blue-800' : 'text-gray-600'
+            }`}>Bog'lanildi</p>
+            <div className={`mt-2 h-1 rounded-full overflow-hidden ${
+              selectedStatus === 'contacted' ? 'bg-blue-500/20' : 'bg-gray-100'
+            }`}>
+              <div className={`h-full rounded-full ${
+                selectedStatus === 'contacted' ? 'bg-blue-600' : 'bg-blue-500'
+              }`} style={{ width: `${(stats.contacted / (stats.total || 1)) * 100}%` }}></div>
+            </div>
+          </button>
 
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Rad etildi</p>
-                <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
+          <button
+            onClick={() => setSelectedStatus('accepted')}
+            className={`group text-left p-5 rounded-3xl transition-all duration-300 backdrop-blur-sm border ${
+              selectedStatus === 'accepted'
+                ? 'bg-green-500/20 border-green-500/30 shadow-lg shadow-green-500/10 scale-[1.02]'
+                : 'bg-white/80 border-gray-200/50 hover:shadow-md hover:scale-[1.01] hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-11 h-11 rounded-3xl flex items-center justify-center transition-all ${
+                selectedStatus === 'accepted'
+                  ? 'bg-green-500/30 backdrop-blur-sm'
+                  : 'bg-green-50 group-hover:scale-110'
+              }`}>
+                <CheckCircle className={`w-6 h-6 ${
+                  selectedStatus === 'accepted' ? 'text-green-700' : 'text-green-600'
+                }`} />
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <XCircle className="w-6 h-6 text-red-600" />
-              </div>
+              <span className={`text-3xl font-bold ${
+                selectedStatus === 'accepted' ? 'text-green-700' : 'text-green-600'
+              }`}>{stats.accepted}</span>
             </div>
-          </Card>
+            <p className={`text-sm font-medium ${
+              selectedStatus === 'accepted' ? 'text-green-800' : 'text-gray-600'
+            }`}>Qabul qilindi</p>
+            <div className={`mt-2 h-1 rounded-full overflow-hidden ${
+              selectedStatus === 'accepted' ? 'bg-green-500/20' : 'bg-gray-100'
+            }`}>
+              <div className={`h-full rounded-full ${
+                selectedStatus === 'accepted' ? 'bg-green-600' : 'bg-green-500'
+              }`} style={{ width: `${(stats.accepted / (stats.total || 1)) * 100}%` }}></div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setSelectedStatus('rejected')}
+            className={`group text-left p-5 rounded-3xl transition-all duration-300 backdrop-blur-sm border ${
+              selectedStatus === 'rejected'
+                ? 'bg-red-500/20 border-red-500/30 shadow-lg shadow-red-500/10 scale-[1.02]'
+                : 'bg-white/80 border-gray-200/50 hover:shadow-md hover:scale-[1.01] hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-11 h-11 rounded-3xl flex items-center justify-center transition-all ${
+                selectedStatus === 'rejected'
+                  ? 'bg-red-500/30 backdrop-blur-sm'
+                  : 'bg-red-50 group-hover:scale-110'
+              }`}>
+                <XCircle className={`w-6 h-6 ${
+                  selectedStatus === 'rejected' ? 'text-red-700' : 'text-red-600'
+                }`} />
+              </div>
+              <span className={`text-3xl font-bold ${
+                selectedStatus === 'rejected' ? 'text-red-700' : 'text-red-600'
+              }`}>{stats.rejected}</span>
+            </div>
+            <p className={`text-sm font-medium ${
+              selectedStatus === 'rejected' ? 'text-red-800' : 'text-gray-600'
+            }`}>Rad etildi</p>
+            <div className={`mt-2 h-1 rounded-full overflow-hidden ${
+              selectedStatus === 'rejected' ? 'bg-red-500/20' : 'bg-gray-100'
+            }`}>
+              <div className={`h-full rounded-full ${
+                selectedStatus === 'rejected' ? 'bg-red-600' : 'bg-red-500'
+              }`} style={{ width: `${(stats.rejected / (stats.total || 1)) * 100}%` }}></div>
+            </div>
+          </button>
         </div>
       )}
 
-      {/* Applications List */}
-      <Card>
+      {/* Applications List - Glassmorphism */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50/50 backdrop-blur-sm">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">
                   O'quvchi
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">
                   Telefon
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">
                   Sinf
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">
                   Sana
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 uppercase tracking-wide">
                   Amallar
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/50 backdrop-blur-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    Yuklanmoqda...
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                      <p className="text-gray-500 font-medium">Yuklanmoqda...</p>
+                    </div>
                   </td>
                 </tr>
-              ) : applicationsData?.applications?.length === 0 ? (
+              ) : filteredApplications.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    Arizalar topilmadi
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 bg-gray-50/80 backdrop-blur-sm rounded-3xl flex items-center justify-center mb-4">
+                        <FileText className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">Arizalar topilmadi</h3>
+                      <p className="text-gray-500">
+                        {searchQuery ? 'Qidiruv bo\'yicha natija yo\'q' : 'Hozircha arizalar mavjud emas'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                applicationsData?.applications
-                  ?.filter((app: Application) => {
-                    if (!searchQuery) return true;
-                    const query = searchQuery.toLowerCase();
-                    return (
-                      app.fullName.toLowerCase().includes(query) ||
-                      app.phone.includes(query) ||
-                      app.grade.includes(query)
-                    );
-                  })
-                  ?.map((application: Application) => (
-                  <tr key={application._id} className="hover:bg-gray-50">
+                filteredApplications.map((application: Application) => (
+                  <tr key={application._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-blue-600" />
+                        <div className="w-10 h-10 bg-blue-600 rounded-3xl flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-white" />
                         </div>
                         <div className="ml-3">
                           <p className="text-sm font-medium text-gray-900">
@@ -331,7 +457,7 @@ export default function ApplicationsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
+                      <div className="flex items-center text-sm font-medium text-gray-900">
                         <GraduationCap className="w-4 h-4 mr-2 text-gray-400" />
                         {application.grade}-sinf
                       </div>
@@ -342,7 +468,7 @@ export default function ApplicationsPage() {
                         {getStatusBadge(application.status)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {new Date(application.createdAt).toLocaleDateString('uz-UZ', {
                         year: 'numeric',
                         month: 'short',
@@ -354,19 +480,19 @@ export default function ApplicationsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleOpenModal(application)}
-                          className="p-2"
-                          title="Ko'rish"
+                          className="hover:bg-blue-50 hover:text-blue-600 rounded-2xl"
+                          title="Ko'rish va tahrirlash"
                         >
                           <MessageSquare className="w-4 h-4" />
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(application._id)}
-                          className="text-red-600 hover:text-red-700 p-2"
+                          className="hover:bg-red-50 hover:text-red-600 rounded-2xl"
                           title="O'chirish"
                         >
                           <XCircle className="w-4 h-4" />
@@ -379,7 +505,7 @@ export default function ApplicationsPage() {
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
       {/* Edit Modal */}
       {showModal && selectedApplication && (
@@ -387,25 +513,28 @@ export default function ApplicationsPage() {
           isOpen={showModal}
           onClose={() => setShowModal(false)}
           title="Arizani tahrirlash"
+          size="md"
         >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                O'quvchi
-              </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <User className="w-5 h-5 text-gray-400 mr-2" />
-                <span className="text-sm font-medium">{selectedApplication.fullName}</span>
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  O'quvchi
+                </label>
+                <div className="flex items-center p-3 bg-gray-50 rounded-xl">
+                  <User className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-900">{selectedApplication.fullName}</span>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Telefon
-              </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <Phone className="w-5 h-5 text-gray-400 mr-2" />
-                <span className="text-sm">{selectedApplication.phone}</span>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefon
+                </label>
+                <div className="flex items-center p-3 bg-gray-50 rounded-xl">
+                  <Phone className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
+                  <span className="text-sm text-gray-900">{selectedApplication.phone}</span>
+                </div>
               </div>
             </div>
 
@@ -413,9 +542,9 @@ export default function ApplicationsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sinf
               </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <GraduationCap className="w-5 h-5 text-gray-400 mr-2" />
-                <span className="text-sm">{selectedApplication.grade}-sinf</span>
+              <div className="flex items-center p-3 bg-gray-50 rounded-2xl">
+                <GraduationCap className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
+                <span className="text-sm text-gray-900">{selectedApplication.grade}-sinf</span>
               </div>
             </div>
 
@@ -446,7 +575,7 @@ export default function ApplicationsPage() {
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
               <Button
                 variant="outline"
                 onClick={() => setShowModal(false)}
@@ -455,9 +584,9 @@ export default function ApplicationsPage() {
               </Button>
               <Button
                 onClick={handleUpdate}
-                disabled={updateMutation.isPending}
+                loading={updateMutation.isPending}
               >
-                {updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+                Saqlash
               </Button>
             </div>
           </div>

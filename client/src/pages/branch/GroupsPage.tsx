@@ -61,9 +61,7 @@ export default function GroupsPage() {
 
   const fetchTeachers = async () => {
     try {
-      console.log('Загрузка учителей...');
       const { data } = await api.get('/teachers');
-      console.log('Учителя загружены:', data);
       setTeachers(data);
     } catch (err: any) {
       console.error('Error fetching teachers:', err);
@@ -80,18 +78,11 @@ export default function GroupsPage() {
     
     setLoading(true);
     try {
-      console.log('=== СОХРАНЕНИЕ ГРУППЫ ===');
-      console.log('FormData:', formData);
-      console.log('TeacherId:', formData.teacherId);
-      console.log('Editing:', editingGroup ? 'Да' : 'Нет');
-      
       if (editingGroup) {
-        const response = await api.put(`/groups/${editingGroup._id}`, formData);
-        console.log('Ответ сервера (обновление):', response.data);
+        await api.put(`/groups/${editingGroup._id}`, formData);
         success('Guruh muvaffaqiyatli yangilandi!');
       } else {
-        const response = await api.post('/groups', formData);
-        console.log('Ответ сервера (создание):', response.data);
+        await api.post('/groups', formData);
         success('Guruh muvaffaqiyatli qo\'shildi!');
       }
       setFormData({ name: '', classNumber: 7 as number, subjectId: '', letter: 'A', teacherId: '' });

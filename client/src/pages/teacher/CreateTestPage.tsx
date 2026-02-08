@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +23,11 @@ export default function CreateTestPage() {
     questions: [] as any[]
   });
   const { success, error } = useToast();
+
+  // Memoize onChange handler to prevent infinite re-renders
+  const handleQuestionsChange = useCallback((questions: any[]) => {
+    setFormData(prev => ({ ...prev, questions }));
+  }, []);
 
   useEffect(() => {
     fetchGroups();
@@ -105,7 +110,6 @@ export default function CreateTestPage() {
             await api.post(`/tests/${createdTest._id}/generate-variants`, {
               studentIds
             });
-            console.log(`✅ Автоматически сгенерированы варианты для ${studentIds.length} студентов`);
           }
         } catch (variantErr) {
           console.error('Error auto-generating variants:', variantErr);
@@ -236,7 +240,7 @@ export default function CreateTestPage() {
 
                   <TestEditor
                     questions={formData.questions}
-                    onChange={(questions) => setFormData({ ...formData, questions })}
+                    onChange={handleQuestionsChange}
                   />
 
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 sm:pt-6 border-t">

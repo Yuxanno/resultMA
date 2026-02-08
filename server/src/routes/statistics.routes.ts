@@ -15,7 +15,7 @@ import mongoose from 'mongoose';
 const router = Router();
 
 // Get teacher dashboard statistics
-router.get('/teacher/dashboard', authenticate, cacheMiddleware(300), async (req: AuthRequest, res) => {
+router.get('/teacher/dashboard', authenticate, async (req: AuthRequest, res) => {
   try {
     const teacherId = req.user?.id;
     if (!teacherId) {
@@ -38,7 +38,8 @@ router.get('/teacher/dashboard', authenticate, cacheMiddleware(300), async (req:
       groupId: { $in: groupIds } 
     }).select('studentId groupId').lean();
 
-    const studentIds = [...new Set(studentGroups.map(sg => sg.studentId))];
+    // Get unique student IDs to ensure each student appears only once
+    const studentIds = [...new Set(studentGroups.map(sg => sg.studentId.toString()))].map(id => new mongoose.Types.ObjectId(id));
 
     // Calculate average percentage for each group
     const groupStats = await Promise.all(
@@ -79,39 +80,81 @@ router.get('/teacher/dashboard', authenticate, cacheMiddleware(300), async (req:
       .sort((a, b) => b!.averagePercentage - a!.averagePercentage)
       .slice(0, 5);
 
-    // Calculate average percentage for each student
-    const studentStats = await Promise.all(
-      studentIds.map(async (studentId) => {
-        const results = await TestResult.find({ studentId })
-          .select('percentage')
-          .lean();
+    // Get TestResults (old system)
+    const allTestResults = await TestResult.find({ 
+      studentId: { $in: studentIds } 
+    }).select('studentId percentage').lean();
 
-        if (results.length === 0) {
-          return null;
-        }
+    // Get all students WITH grades in one query
+    const allStudents = await Student.find({ 
+      _id: { $in: studentIds } 
+    }).select('_id fullName grades').lean();
 
-        const avgPercentage = results.reduce((sum, r) => sum + r.percentage, 0) / results.length;
-        const student = await Student.findById(studentId).select('fullName').lean();
+    // Create maps for O(1) lookup
+    const studentMap = new Map(allStudents.map(s => [s._id.toString(), { fullName: s.fullName, grades: s.grades || [] }]));
+    const resultsByStudent = new Map<string, number[]>();
+    
+    allTestResults.forEach(result => {
+      const studentId = result.studentId.toString();
+      if (!resultsByStudent.has(studentId)) {
+        resultsByStudent.set(studentId, []);
+      }
+      resultsByStudent.get(studentId)!.push(result.percentage);
+    });
 
-        // Find which group this student belongs to
-        const studentGroup = studentGroups.find(sg => sg.studentId.toString() === studentId.toString());
-        const group = teacherGroups.find(g => g._id.toString() === studentGroup?.groupId.toString());
+    // Calculate stats for each student
+    const studentStats = studentIds.map((studentId) => {
+      const studentIdStr = studentId.toString();
+      const studentData = studentMap.get(studentIdStr);
+      
+      if (!studentData) {
+        return null;
+      }
 
-        return {
-          studentId,
-          studentName: student?.fullName || 'Unknown',
-          groupName: group?.name || 'Unknown',
-          testsCount: results.length,
-          averagePercentage: Math.round(avgPercentage * 10) / 10
-        };
-      })
-    );
+      // Combine TestResults + Student.grades
+      const allScores: number[] = [];
+      
+      // Add TestResults (old system)
+      const testResults = resultsByStudent.get(studentIdStr);
+      if (testResults) {
+        allScores.push(...testResults);
+      }
+      
+      // Add Student.grades (new system - from Assignments)
+      if (studentData.grades && studentData.grades.length > 0) {
+        const gradePercentages = studentData.grades.map((g: any) => g.percentage);
+        allScores.push(...gradePercentages);
+      }
+
+      if (allScores.length === 0) {
+        return null;
+      }
+
+      const avgPercentage = allScores.reduce((sum, r) => sum + r, 0) / allScores.length;
+
+      // Find which group this student belongs to
+      const studentGroup = studentGroups.find(sg => sg.studentId.toString() === studentIdStr);
+      const group = teacherGroups.find(g => g._id.toString() === studentGroup?.groupId.toString());
+
+      return {
+        studentId,
+        studentName: studentData.fullName,
+        groupName: group?.name || 'Unknown',
+        testsCount: allScores.length,
+        averagePercentage: Math.round(avgPercentage * 10) / 10
+      };
+    });
 
     // Filter out null values and sort by average percentage
     const topStudents = studentStats
       .filter(s => s !== null)
       .sort((a, b) => b!.averagePercentage - a!.averagePercentage)
       .slice(0, 10);
+
+    // Disable caching
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     res.json({
       topGroups,
@@ -124,15 +167,17 @@ router.get('/teacher/dashboard', authenticate, cacheMiddleware(300), async (req:
 });
 
 // Get branch dashboard statistics
-router.get('/branch/dashboard', authenticate, cacheMiddleware(300), async (req: AuthRequest, res) => {
+router.get('/branch/dashboard', authenticate, async (req: AuthRequest, res) => {
   try {
     const branchId = req.user?.branchId;
     if (!branchId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    // Get all students in the branch
-    const students = await Student.find({ branchId }).select('_id fullName').lean();
+    // Get all students in the branch WITH their grades
+    const students = await Student.find({ branchId })
+      .select('_id fullName grades')
+      .lean();
     const studentIds = students.map(s => s._id);
 
     if (studentIds.length === 0) {
@@ -141,26 +186,57 @@ router.get('/branch/dashboard', authenticate, cacheMiddleware(300), async (req: 
       });
     }
 
-    // Calculate average percentage for each student
-    const studentStats = await Promise.all(
-      studentIds.map(async (studentId) => {
-        const results = await TestResult.find({ studentId })
-          .select('percentage')
-          .lean();
+    console.log('🔍 Calculating ratings for', students.length, 'students');
 
-        const student = students.find(s => s._id.toString() === studentId.toString());
+    // Get TestResults (old system)
+    const allTestResults = await TestResult.find({ 
+      studentId: { $in: studentIds } 
+    }).select('studentId percentage').lean();
 
-        // Return student even if no test results
-        return {
-          _id: studentId,
-          fullName: student?.fullName || 'Unknown',
-          testsCompleted: results.length,
-          averageScore: results.length > 0 
-            ? Math.round((results.reduce((sum, r) => sum + r.percentage, 0) / results.length) * 10) / 10
-            : 0
-        };
-      })
-    );
+    // Create map for O(1) lookup
+    const resultsByStudent = new Map<string, number[]>();
+    
+    allTestResults.forEach(result => {
+      const studentId = result.studentId.toString();
+      if (!resultsByStudent.has(studentId)) {
+        resultsByStudent.set(studentId, []);
+      }
+      resultsByStudent.get(studentId)!.push(result.percentage);
+    });
+
+    // Calculate stats for each student
+    const studentStats = students.map((student) => {
+      const studentIdStr = student._id.toString();
+      
+      // Combine TestResults + Student.grades
+      const allScores: number[] = [];
+      
+      // Add TestResults (old system)
+      const testResults = resultsByStudent.get(studentIdStr);
+      if (testResults) {
+        allScores.push(...testResults);
+      }
+      
+      // Add Student.grades (new system - from Assignments)
+      if (student.grades && student.grades.length > 0) {
+        const gradePercentages = student.grades.map((g: any) => g.percentage);
+        allScores.push(...gradePercentages);
+      }
+
+      const testsCompleted = allScores.length;
+      const averageScore = testsCompleted > 0 
+        ? Math.round((allScores.reduce((sum, r) => sum + r, 0) / testsCompleted) * 10) / 10
+        : 0;
+
+      console.log(`📊 ${student.fullName}: ${testsCompleted} tests, avg: ${averageScore}%`);
+
+      return {
+        _id: student._id,
+        fullName: student.fullName,
+        testsCompleted,
+        averageScore
+      };
+    });
 
     // Sort by average score (descending), then by name (ascending)
     const sortedStudents = studentStats.sort((a, b) => {
@@ -184,6 +260,13 @@ router.get('/branch/dashboard', authenticate, cacheMiddleware(300), async (req: 
         rank
       };
     });
+
+    console.log('✅ Top 10 students:', topStudents.slice(0, 10).map(s => `${s.fullName}: ${s.averageScore}%`));
+
+    // Disable caching
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     res.json({
       topStudents

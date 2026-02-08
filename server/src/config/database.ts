@@ -25,8 +25,8 @@ export const connectDB = async () => {
     // Включаем кэширование запросов
     mongoose.set('bufferCommands', false); // Отключаем буферизацию для быстрого fail
     
-    // Оптимизация для чтения
-    mongoose.set('debug', process.env.NODE_ENV === 'development'); // Логи только в dev
+    // Отключаем логи Mongoose (createIndex и т.д.)
+    mongoose.set('debug', false);
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📊 Pool size: ${(conn.connection as any).client?.options?.maxPoolSize || 'default'}`);

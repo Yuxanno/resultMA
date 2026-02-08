@@ -1,101 +1,36 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '@/lib/api';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Input } from '@/components/ui/Input';
-import { StudentList } from '@/components/ui/StudentCard';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { useToast } from '@/hooks/useToast';
-import TestOptionsModal from '@/components/TestOptionsModal';
-import { Plus, Upload, FileText, Edit2, Trash2, Users, Eye, Search, BookOpen, ArrowRight, ArrowLeft, Shuffle } from 'lucide-react';
+import { useTests, useDeleteTest } from '@/hooks/useTests';
+import { SkeletonCard } from '@/components/ui/SkeletonCard';
+import { Plus, Upload, FileText, Edit2, Trash2, Calendar, ArrowRight } from 'lucide-react';
 
 export default function TestsPage() {
   const navigate = useNavigate();
-  const [tests, setTests] = useState<any[]>([]);
-  const [showVariantsModal, setShowVariantsModal] = useState(false);
-  const [selectedTest, setSelectedTest] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const { success, error } = useToast();
+  const location = useLocation();
   
-  // Configuration view state
-  const [showConfigView, setShowConfigView] = useState(false);
-  const [configTest, setConfigTest] = useState<any>(null);
-  const [students, setStudents] = useState<any[]>([]);
-  const [variants, setVariants] = useState<any[]>([]);
-  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  // React Query hooks
+  const { data: tests = [], isLoading: loading, refetch } = useTests('minimal');
+  const deleteTestMutation = useDeleteTest();
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const { success, error } = useToast();
 
+  // Перезагружаем тесты при возврате на страницу с флагом refresh
   useEffect(() => {
-    fetchTests();
-  }, []);
-
-  const fetchTests = async () => {
-    try {
-      setLoading(true);
-      const { data } = await api.get('/tests');
-      setTests(data);
-    } catch (err: any) {
-      console.error('Error fetching tests:', err);
-      error('Testlarni yuklashda xatolik');
-    } finally {
-      setLoading(false);
+    if (location.state?.refresh) {
+      refetch();
+      // Очищаем state чтобы не перезагружать при следующем рендере
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  };
-
-  // Load configuration data
-  const loadConfigData = async (testId: string) => {
-    try {
-      setLoading(true);
-      
-      // Загружаем тест
-      const { data: testData } = await api.get(`/tests/${testId}`);
-      setConfigTest(testData);
-      
-      // Загружаем студентов группы
-      if (testData.groupId) {
-        const groupId = testData.groupId._id || testData.groupId;
-        const { data: studentsData } = await api.get(`/students/group/${groupId}`);
-        setStudents(studentsData);
-      }
-      
-      // Загружаем варианты
-      const { data: variantsData } = await api.get(`/tests/${testId}/variants`);
-      setVariants(variantsData);
-      
-      setShowConfigView(true);
-    } catch (err: any) {
-      console.error('Error loading data:', err);
-      error('Ma\'lumotlarni yuklashda xatolik');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [location.state, refetch, navigate]);
 
   const handleCardClick = (test: any) => {
-    loadConfigData(test._id);
-  };
-
-  const handleBackToList = () => {
-    setShowConfigView(false);
-    setConfigTest(null);
-    setStudents([]);
-    setVariants([]);
-    setStudentSearchQuery('');
-  };
-
-  const handleGenerateVariants = async () => {
-    if (!configTest) return;
-    
-    try {
-      await api.post(`/tests/${configTest._id}/generate-variants`);
-      success('Variantlar yaratildi');
-      await loadConfigData(configTest._id);
-    } catch (err: any) {
-      console.error('Error generating variants:', err);
-      error('Variantlar yaratishda xatolik');
-    }
+    // Navigate to test detail page with proper route
+    navigate(`/teacher/tests/${test._id}`);
   };
 
   const handleEdit = (testId: string) => {
@@ -106,188 +41,31 @@ export default function TestsPage() {
     if (!confirm('Testni o\'chirmoqchimisiz?')) return;
     
     try {
-      await api.delete(`/tests/${testId}`);
-      fetchTests();
+      await deleteTestMutation.mutateAsync(testId);
       success('Test o\'chirildi!');
     } catch (err: any) {
-      console.error('Error deleting test:', err);
+      console.error('❌ Error deleting test:', err);
       error(err.response?.data?.message || 'Xatolik yuz berdi');
     }
   };
 
-  const handleShowVariants = (test: any) => {
-    setSelectedTest(test);
-    setShowVariantsModal(true);
-  };
-
-  const filteredStudentsForConfig = students.filter(student =>
-    student.fullName.toLowerCase().includes(studentSearchQuery.toLowerCase())
-  );
-
   const filteredTests = tests.filter(test =>
-    test.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    test.groupId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    test.subjectId?.nameUzb?.toLowerCase().includes(searchQuery.toLowerCase())
+    test.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in pb-24">
+        {/* Header Skeleton */}
         <div className="animate-pulse">
-          <div className="h-12 w-64 bg-slate-200 rounded-2xl mb-3"></div>
-          <div className="h-6 w-96 bg-slate-200 rounded-xl"></div>
+          <div className="h-10 w-48 bg-gradient-to-r from-slate-200 to-slate-300 rounded-2xl mb-3"></div>
+          <div className="h-5 w-72 bg-slate-200 rounded-xl"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-56 bg-slate-200 rounded-3xl animate-pulse"></div>
-          ))}
+        
+        {/* Tests Grid Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+          <SkeletonCard variant="test" count={6} />
         </div>
-      </div>
-    );
-  }
-
-  // Show configuration view
-  if (showConfigView && configTest) {
-    const hasVariants = variants.length > 0;
-    
-    return (
-      <div className="space-y-6 animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleBackToList}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">{configTest.name}</h1>
-              <p className="text-sm text-slate-600 mt-1">
-                {configTest.classNumber}-sinf • {configTest.subjectId?.nameUzb} • {configTest.groupId?.name}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Test Info Card */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
-              <FileText className="w-8 h-8 text-white" />
-            </div>
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-slate-600">Savollar</p>
-                <p className="text-2xl font-bold text-slate-900">{configTest.questions?.length || 0} ta</p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-600">O'quvchilar</p>
-                <p className="text-2xl font-bold text-slate-900">{students.length} ta</p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-600">Variantlar</p>
-                <p className="text-2xl font-bold text-slate-900">{variants.length} ta</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions Card */}
-        <button
-          onClick={() => setShowVariantsModal(true)}
-          className="w-full bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 hover:bg-blue-50/50 transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900 text-sm">Testni ko'rish va chop etish</div>
-                <div className="text-xs text-slate-500">Variantlar, javoblar va chop etish</div>
-              </div>
-            </div>
-            <Eye className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
-          </div>
-        </button>
-
-        {/* Additional Actions */}
-        {!hasVariants && (
-          <Button
-            onClick={handleGenerateVariants}
-            className="w-full bg-purple-600 hover:bg-purple-700"
-          >
-            <Shuffle className="w-4 h-4 mr-2" />
-            Variantlar yaratish
-          </Button>
-        )}
-
-        {/* Students List */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Users className="w-4 h-4" />
-                O'quvchilar ro'yxati
-              </div>
-              <Badge variant="info" size="sm">
-                {filteredStudentsForConfig.length} / {students.length}
-              </Badge>
-            </div>
-          </div>
-          
-          {/* Search Input */}
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="O'quvchi ismini qidirish..."
-                value={studentSearchQuery}
-                onChange={(e) => setStudentSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              {studentSearchQuery && (
-                <button
-                  onClick={() => setStudentSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div>
-            <StudentList
-              students={filteredStudentsForConfig}
-              emptyMessage={studentSearchQuery ? "Qidiruv bo'yicha o'quvchi topilmadi" : "O'quvchilar topilmadi"}
-              compact={true}
-            />
-          </div>
-        </div>
-
-        {/* Test Options Modal */}
-        {configTest && (
-          <TestOptionsModal
-            isOpen={showVariantsModal}
-            onClose={() => setShowVariantsModal(false)}
-            test={configTest}
-            onRefresh={() => loadConfigData(configTest._id)}
-          />
-        )}
       </div>
     );
   }
@@ -388,36 +166,14 @@ export default function TestsPage() {
                     <h3 className="text-lg font-bold text-slate-900 mb-3 group-hover:text-green-600 transition-colors line-clamp-2">
                       {test.name}
                     </h3>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      <Badge className="bg-green-100 text-green-700 border-green-200">
-                        {test.classNumber}-sinf
-                      </Badge>
-                      {test.subjectId && (
-                        <Badge className="bg-purple-100 text-purple-700 border-purple-200">
-                          {test.subjectId.nameUzb}
-                        </Badge>
-                      )}
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>{new Date(test.createdAt).toLocaleDateString('uz-UZ')}</span>
                     </div>
                   </div>
 
-                  {/* Group */}
-                  {test.groupId && (
-                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl mb-4">
-                      <Users className="w-4 h-4 text-slate-600" />
-                      <span className="text-sm font-semibold text-slate-700">
-                        {test.groupId.name}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Stats */}
-                  <div className="flex items-center justify-between text-slate-600 pt-4 border-t border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4" />
-                      <span className="text-sm font-medium">
-                        {test.questions?.length || 0} ta savol
-                      </span>
-                    </div>
+                  {/* Action */}
+                  <div className="flex items-center justify-end text-slate-600 pt-4 border-t border-slate-200">
                     <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
                   </div>
                 </CardContent>

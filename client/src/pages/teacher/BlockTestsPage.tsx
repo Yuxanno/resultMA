@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/Input';
 import { StudentList } from '@/components/ui/StudentCard';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { useToast } from '@/hooks/useToast';
+import { useBlockTests, useDeleteBlockTest } from '@/hooks/useBlockTests';
 import TestOptionsModal from '@/components/TestOptionsModal';
 import StudentConfigModal from '@/components/StudentConfigModal';
 import GroupConfigModal from '@/components/GroupConfigModal';
 import StudentSelectionPrintModal from '@/components/StudentSelectionPrintModal';
 import ShuffleVariantsModal from '@/components/ShuffleVariantsModal';
 import BlockTestActionsModal from '@/components/BlockTestActionsModal';
+import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { 
   Plus, 
   BookOpen, 
@@ -39,10 +41,13 @@ import {
 
 export default function BlockTestsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { success, error } = useToast();
   
-  const [blockTests, setBlockTests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // React Query hooks
+  const { data: blockTests = [], isLoading: loading, refetch } = useBlockTests('minimal');
+  const deleteBlockTestMutation = useDeleteBlockTest();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTest, setSelectedTest] = useState<any>(null);
   const [showVariantsModal, setShowVariantsModal] = useState(false);
@@ -62,133 +67,161 @@ export default function BlockTestsPage() {
   const [printMode, setPrintMode] = useState<'all' | 'questions' | 'answers'>('all');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
+  const [configLoading, setConfigLoading] = useState(false); // Локальный loading для конфигурации
 
+  // Prefetch cache для предзагрузки
+  const prefetchCache = new Map<string, any>();
+
+  // Перезагружаем блок-тесты при возврате на страницу с флагом refresh
   useEffect(() => {
-    fetchBlockTests();
-  }, []);
-
-  const fetchBlockTests = async () => {
-    try {
-      setLoading(true);
-      const { data } = await api.get('/block-tests');
-      setBlockTests(data);
-    } catch (error) {
-      console.error('Error fetching block tests:', error);
-    } finally {
-      setLoading(false);
+    if (location.state?.refresh) {
+      console.log('✅ Refreshing block tests after import...');
+      refetch();
+      // Очищаем state чтобы не перезагружать при следующем рендере
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  };
+  }, [location.state, refetch, navigate]);
 
-  // Load configuration data
-  const loadConfigData = async (testId: string) => {
+  // Prefetch - загружаем данные заранее при наведении
+  const prefetchBlockTestData = async (testId: string) => {
+    if (prefetchCache.has(testId)) return; // Уже загружено
+    
     try {
-      setLoading(true);
+      console.log('🔄 Prefetching block test:', testId);
       
-      // Загружаем блок-тест
+      // Загружаем блок-тест в фоне
       const { data: testData } = await api.get(`/block-tests/${testId}`);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
-      const testDate = new Date(testData.date).toISOString().split('T')[0];
-      
-      // Фильтруем тесты по классу и дате
-      const sameGroupTests = allTests.filter((t: any) => {
-        const tDate = new Date(t.date).toISOString().split('T')[0];
-        return t.classNumber === testData.classNumber && tDate === testDate;
-      });
-      
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
-      
-      // Объединяем все предметы из всех тестов
-      const allSubjects: any[] = [];
-      sameGroupTests.forEach((test: any) => {
-        test.subjectTests?.forEach((st: any) => {
-          if (st.subjectId) {
-            allSubjects.push({
-              ...st,
-              testId: test._id // Сохраняем ID теста для каждого предмета
-            });
-          }
-        });
-      });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
-      
-      // Создаем объединенный блок-тест для отображения
-      const mergedBlockTest = {
-        ...testData,
-        subjectTests: allSubjects,
-        allTestIds: sameGroupTests.map((t: any) => t._id)
-      };
-      
-      setConfigBlockTest(mergedBlockTest);
-      
-      // Загружаем учеников класса
+      // Загружаем студентов в фоне
       const { data: studentsData } = await api.get('/students', {
         params: { classNumber: testData.classNumber }
       });
-      setStudents(studentsData);
       
-      // Загружаем конфигурации учеников ПАРТИЯМИ (по 5 за раз)
-      const studentIds = studentsData.map((s: any) => s._id);
+      // Сохраняем в кэш
+      prefetchCache.set(testId, {
+        test: testData,
+        students: studentsData,
+        timestamp: Date.now()
+      });
       
-      // Используем batch endpoint для оптимизации
-      let configs: any[] = [];
-      try {
-        const { data: batchConfigs } = await api.post('/student-test-configs/batch', {
-          studentIds
-        });
-        configs = batchConfigs;
-      } catch (batchError) {
-        console.warn('Batch endpoint failed, using individual requests');
+      console.log('✅ Prefetched block test:', testId);
+    } catch (err) {
+      console.log('⚠️ Prefetch failed:', testId);
+    }
+  };
+
+  // Load configuration data с приоритетной загрузкой
+  const loadConfigData = async (testId: string) => {
+    try {
+      console.log('🔄 loadConfigData started for:', testId);
+      setConfigLoading(true);
+      
+      // ПРИОРИТЕТ 1: Проверяем prefetch кэш
+      const cached = prefetchCache.get(testId);
+      if (cached && Date.now() - cached.timestamp < 60000) { // Кэш 1 минута
+        console.log('⚡ Using prefetched data');
         
-        // Fallback: загружаем по 5 за раз
-        const batchSize = 5;
-        for (let i = 0; i < studentsData.length; i += batchSize) {
-          const batch = studentsData.slice(i, i + batchSize);
-          
-          const batchResults = await Promise.all(
-            batch.map(async (student: any) => {
-              try {
-                const { data } = await api.get(`/student-test-configs/${student._id}`);
-                return data;
-              } catch (err: any) {
-                // Если конфигурации нет (404), создаем дефолтную
-                if (err.response?.status === 404) {
-                  try {
-                    const { data } = await api.post(`/student-test-configs/create-for-block-test/${student._id}/${testId}`);
-                    return data;
-                  } catch (createErr) {
-                    console.error('Error creating config:', createErr);
-                    return null;
-                  }
-                }
-                return null;
-              }
-            })
-          );
-          
-          configs.push(...batchResults);
-          
-          // Небольшая задержка между партиями
-          if (i + batchSize < studentsData.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+        const testData = cached.test;
+        
+        // Используем данные из кэша, которые уже содержат subjectTests
+        const allSubjects: any[] = [];
+        if (testData.subjectTests && Array.isArray(testData.subjectTests)) {
+          testData.subjectTests.forEach((st: any) => {
+            if (st.subjectId) {
+              allSubjects.push({ ...st, testId: testData._id });
+            }
+          });
         }
+        
+        const mergedBlockTest = {
+          ...testData,
+          subjectTests: allSubjects,
+          allTestIds: [testData._id]
+        };
+        
+        console.log('✅ Setting cached data to state');
+        setConfigBlockTest(mergedBlockTest);
+        setStudents(cached.students);
+        setShowConfigView(true);
+        setConfigLoading(false);
+        
+        // ПРИОРИТЕТ 3: Загружаем конфигурации в фоне
+        const studentIds = cached.students.map((s: any) => s._id);
+        api.post('/student-test-configs/batch', { studentIds })
+          .then(({ data }) => {
+            console.log('✅ Configs loaded');
+            setStudentConfigs(data);
+          })
+          .catch(err => console.error('❌ Error loading configs:', err));
+        
+        return;
       }
       
-      setStudentConfigs(configs);
-      setShowConfigView(true);
+      console.log('🌐 Fetching block test from server...');
+      
+      // ПРИОРИТЕТ 1: Загружаем блок-тест (самое важное)
+      const { data: testData } = await api.get(`/block-tests/${testId}`);
+      
+      console.log('📊 Loaded block test with subjects:', testData.subjectTests?.length || 0);
+      
+      // Используем данные, которые уже пришли с сервера
+      // testData уже содержит все subjectTests с вопросами
+      const allSubjects: any[] = [];
+      
+      if (testData.subjectTests && Array.isArray(testData.subjectTests)) {
+        testData.subjectTests.forEach((st: any) => {
+          if (st.subjectId) {
+            allSubjects.push({ ...st, testId: testData._id });
+          }
+        });
+      }
+      
+      console.log('📝 Total subjects:', allSubjects.length);
+      
+      const mergedBlockTest = {
+        ...testData,
+        subjectTests: allSubjects,
+        allTestIds: [testData._id]
+      };
+      
+      console.log('✅ Setting block test to state');
+      setConfigBlockTest(mergedBlockTest);
+      setShowConfigView(true); // Показываем сразу!
+      setConfigLoading(false);
+      
+      console.log('🔄 Loading students for class:', testData.classNumber);
+      
+      // ПРИОРИТЕТ 2: Загружаем студентов (показываем список)
+      api.get('/students', { params: { classNumber: testData.classNumber } })
+        .then(({ data: studentsData }) => {
+          console.log('✅ Students loaded:', studentsData.length);
+          setStudents(studentsData);
+          
+          // ПРИОРИТЕТ 3: Загружаем конфигурации в фоне
+          const studentIds = studentsData.map((s: any) => s._id);
+          console.log('🔄 Loading configs for', studentIds.length, 'students');
+          return api.post('/student-test-configs/batch', { studentIds });
+        })
+        .then(({ data: configs }) => {
+          console.log('✅ Configs loaded:', configs.length);
+          setStudentConfigs(configs);
+        })
+        .catch(err => {
+          console.error('❌ Error loading students/configs:', err);
+        });
+      
     } catch (err: any) {
-      console.error('Error loading data:', err);
+      console.error('❌ Error loading data:', err);
       error('Ma\'lumotlarni yuklashda xatolik');
-    } finally {
-      setLoading(false);
+      setConfigLoading(false);
     }
   };
 
   const handleCardClick = (firstTest: any) => {
-    loadConfigData(firstTest._id);
+    console.log('🖱️ Card clicked, navigating to:', `/teacher/block-tests/${firstTest._id}`);
+    
+    // Navigate to dedicated page instead of modal
+    navigate(`/teacher/block-tests/${firstTest._id}`);
   };
 
   const handleBackToList = () => {
@@ -199,68 +232,66 @@ export default function BlockTestsPage() {
     setStudentSearchQuery('');
   };
 
-  const filteredTests = blockTests.filter(test =>
-    test.classNumber?.toString().includes(searchQuery) ||
-    test.date?.includes(searchQuery)
+  // Memoize filtered and grouped tests to prevent recalculation on every render
+  const filteredTests = useMemo(() => 
+    blockTests.filter(test =>
+      test.classNumber?.toString().includes(searchQuery) ||
+      test.date?.includes(searchQuery)
+    ),
+    [blockTests, searchQuery]
   );
 
-  const groupedTests = filteredTests.reduce((acc: any, test) => {
-    const dateKey = new Date(test.date).toISOString().split('T')[0];
-    const key = `${test.classNumber}-${dateKey}`;
-    
-    if (!acc[key]) {
-      acc[key] = {
-        classNumber: test.classNumber,
-        date: test.date,
-        dateKey: dateKey,
-        tests: [],
-        allSubjects: [],
-        totalStudents: 0,
-        totalQuestions: 0
-      };
-    }
-    
-    acc[key].tests.push(test);
-    
-    // Collect ALL subject tests (don't filter duplicates)
-    if (test.subjectTests && Array.isArray(test.subjectTests)) {
-      test.subjectTests.forEach((st: any) => {
-        // Add all subject tests without checking for duplicates
-        acc[key].allSubjects.push(st);
-        
-        // Count questions from each subject test
-        if (st.questions && Array.isArray(st.questions)) {
-          acc[key].totalQuestions += st.questions.length;
-        }
-      });
-    }
-    
-    const studentIds = new Set(acc[key].tests.flatMap((t: any) => 
-      t.studentConfigs?.map((sc: any) => sc.studentId?.toString() || sc.studentId) || []
-    ));
-    acc[key].totalStudents = studentIds.size;
-    
-    return acc;
-  }, {});
+  const groupedArray = useMemo(() => {
+    const groupedTests = filteredTests.reduce((acc: any, test) => {
+      const dateKey = new Date(test.date).toISOString().split('T')[0];
+      const key = `${test.classNumber}-${dateKey}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          classNumber: test.classNumber,
+          date: test.date,
+          dateKey: dateKey,
+          periodMonth: test.periodMonth,
+          periodYear: test.periodYear,
+          tests: []
+        };
+      }
+      
+      acc[key].tests.push(test);
+      
+      return acc;
+    }, {});
 
-  const groupedArray = Object.values(groupedTests).sort((a: any, b: any) => {
-    if (a.classNumber !== b.classNumber) return b.classNumber - a.classNumber;
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
-  });
+    return Object.values(groupedTests).sort((a: any, b: any) => {
+      if (a.classNumber !== b.classNumber) return b.classNumber - a.classNumber;
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+  }, [filteredTests]);
 
-  const handleDeleteTest = async (group: any) => {
+  const handleDeleteTest = useCallback(async (group: any) => {
     if (!confirm('Bu guruhdagi barcha testlarni o\'chirmoqchimisiz?')) return;
     
     try {
-      for (const test of group.tests) {
-        await api.delete(`/block-tests/${test._id}`);
-      }
-      fetchBlockTests();
-    } catch (error) {
-      console.error('Error deleting tests:', error);
-      alert('Testlarni o\'chirishda xatolik yuz berdi');
+      console.log('🗑️ Deleting', group.tests.length, 'block tests...');
+      
+      // Удаляем все тесты параллельно
+      await Promise.all(
+        group.tests.map((test: any) => 
+          api.delete(`/block-tests/${test._id}`)
+        )
+      );
+      
+      console.log('✅ All block tests deleted, refreshing list...');
+      
+      // Принудительно обновляем список
+      refetch();
+      
+      success('Testlar o\'chirildi');
+    } catch (err) {
+      console.error('❌ Error deleting tests:', err);
+      error('Testlarni o\'chirishda xatolik yuz berdi');
     }
-  };
+  }, [refetch, success, error]);
 
   const handleResetAll = async () => {
     if (!confirm(`Barcha o'quvchilar uchun sozlamalarni tiklashni xohlaysizmi?\n\nBu amal:\n• Qo'shimcha fanlarni o'chiradi\n• Dефолт savollar soniga qaytaradi\n• Ballar sozlamasini tozalaydi`)) {
@@ -302,9 +333,9 @@ export default function BlockTestsPage() {
       await api.post(`/student-test-configs/apply-to-block-test/${configBlockTest._id}`);
       success('Sozlamalar qo\'llanildi');
       handleBackToList();
-      fetchBlockTests();
+      refetch(); // Обновляем список через React Query
     } catch (err: any) {
-      console.error('Error applying configs:', err);
+      console.error('❌ Error applying configs:', err);
       error('Sozlamalarni qo\'llashda xatolik');
     } finally {
       setSaving(false);
@@ -368,7 +399,18 @@ export default function BlockTestsPage() {
       
       success(`${selectedStudentIds.length} ta o'quvchi uchun variantlar aralashtirildi`);
       setShowShuffleModal(false);
-      await loadConfigData(configBlockTest._id);
+      
+      // Обновляем только данные студентов, не открываем окно конфигурации
+      const { data: studentsData } = await api.get('/students', { 
+        params: { classNumber: configBlockTest.classNumber } 
+      });
+      setStudents(studentsData);
+      
+      // Обновляем конфигурации студентов
+      const studentIds = studentsData.map((s: any) => s._id);
+      const { data: configs } = await api.post('/student-test-configs/batch', { studentIds });
+      setStudentConfigs(configs);
+      
     } catch (err: any) {
       console.error('Error shuffling:', err);
       error('Variantlarni aralashtirishda xatolik');
@@ -377,22 +419,26 @@ export default function BlockTestsPage() {
     }
   };
 
-  // Фильтрация студентов по поисковому запросу
-  const filteredStudentsForConfig = students.filter(student =>
-    student.fullName.toLowerCase().includes(studentSearchQuery.toLowerCase())
+  // Фильтрация студентов по поисковому запросу - OPTIMIZED with useMemo
+  const filteredStudentsForConfig = useMemo(() => 
+    students.filter(student =>
+      student.fullName.toLowerCase().includes(studentSearchQuery.toLowerCase())
+    ),
+    [students, studentSearchQuery]
   );
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in pb-24">
+        {/* Header Skeleton */}
         <div className="animate-pulse">
-          <div className="h-12 w-64 bg-slate-200 rounded-2xl mb-3"></div>
-          <div className="h-6 w-96 bg-slate-200 rounded-xl"></div>
+          <div className="h-10 w-56 bg-gradient-to-r from-purple-200 to-pink-200 rounded-2xl mb-3"></div>
+          <div className="h-5 w-80 bg-slate-200 rounded-xl"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-48 bg-slate-200 rounded-3xl animate-pulse"></div>
-          ))}
+        
+        {/* Block Tests Grid Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+          <SkeletonCard variant="blocktest" count={6} />
         </div>
       </div>
     );
@@ -571,12 +617,25 @@ export default function BlockTestsPage() {
           </div>
           
           <div>
-            <StudentList
-              students={filteredStudentsForConfig}
-              configs={studentConfigs}
-              onConfigure={handleConfigureStudent}
-              emptyMessage={studentSearchQuery ? "Qidiruv bo'yicha o'quvchi topilmadi" : "O'quvchilar topilmadi"}
-            />
+            {students.length === 0 && !loading ? (
+              <StudentList
+                students={filteredStudentsForConfig}
+                configs={studentConfigs}
+                onConfigure={handleConfigureStudent}
+                emptyMessage={studentSearchQuery ? "Qidiruv bo'yicha o'quvchi topilmadi" : "O'quvchilar topilmadi"}
+              />
+            ) : students.length === 0 ? (
+              <div className="space-y-2">
+                <SkeletonCard variant="student" count={8} />
+              </div>
+            ) : (
+              <StudentList
+                students={filteredStudentsForConfig}
+                configs={studentConfigs}
+                onConfigure={handleConfigureStudent}
+                emptyMessage={studentSearchQuery ? "Qidiruv bo'yicha o'quvchi topilmadi" : "O'quvchilar topilmadi"}
+              />
+            )}
           </div>
         </div>
 
@@ -707,6 +766,7 @@ export default function BlockTestsPage() {
                 key={`${group.classNumber}-${group.dateKey}`}
                 style={{ animationDelay: `${groupIndex * 100}ms` }}
                 className="animate-slide-in"
+                onMouseEnter={() => prefetchBlockTestData(firstTest._id)} // Prefetch при наведении
               >
                 <Card 
                   className="h-full bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer relative"
@@ -749,21 +809,14 @@ export default function BlockTestsPage() {
                         {group.classNumber}-sinf
                       </span>
                       <span className="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full text-sm font-semibold">
-                        {group.allSubjects.length > 0 && group.allSubjects[0].subjectId?.name || 'Matematika'}
+                        {group.periodMonth}/{group.periodYear}
                       </span>
-                    </div>
-
-                    <div className="bg-slate-50 rounded-xl p-3 mb-4">
-                      <div className="flex items-center gap-2 text-slate-700">
-                        <Users className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-medium">{formattedDate}</span>
-                      </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-200">
                       <div className="flex items-center gap-2 text-slate-600">
-                        <BookOpen className="w-4 h-4" />
-                        <span className="text-sm font-medium">{group.totalQuestions} ta savol</span>
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm font-medium">{formattedDate}</span>
                       </div>
                       <ArrowRight className="w-5 h-5 text-slate-400" />
                     </div>

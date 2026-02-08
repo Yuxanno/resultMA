@@ -55,11 +55,9 @@ export default function CreateAssignmentPage() {
   };
 
   const fetchAssignment = async () => {
-    console.log('Fetching assignment with id:', id);
     setFetchingAssignment(true);
     try {
       const { data } = await api.get(`/assignments/${id}`);
-      console.log('Assignment data received:', data);
       
       // Сервер возвращает { assignment, submissions }, нам нужен только assignment
       const assignmentData = data.assignment || data;
@@ -74,7 +72,6 @@ export default function CreateAssignmentPage() {
         questions: assignmentData.questions || []
       };
       
-      console.log('Setting form data:', newFormData);
       setFormData(newFormData);
     } catch (err) {
       console.error('Error fetching assignment:', err);

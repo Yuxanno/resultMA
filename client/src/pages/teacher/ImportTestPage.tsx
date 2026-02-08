@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Upload, FileText, Image, X, CheckCircle, AlertCircle, Loader2, ArrowLeft, Trash2, ImagePlus } from 'lucide-react';
 import api from '@/lib/api';
+import { useImportTest } from '@/hooks/useTests';
 import MathText from '@/components/MathText';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { convertLatexToHtml, convertLatexToTiptapJson } from '@/lib/latexUtils';
@@ -19,6 +20,10 @@ interface ParsedQuestion {
 
 export default function ImportTestPage() {
   const navigate = useNavigate();
+  
+  // React Query mutation
+  const importTestMutation = useImportTest();
+  
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([]);
@@ -195,21 +200,38 @@ export default function ImportTestPage() {
     setError('');
     
     try {
+      console.log('🔄 Importing test...');
+      
       const selectedGroup = groups.find(g => g._id === selectedGroupId);
       
-      await api.post('/tests/import/confirm', {
-        questions: parsedQuestions,
+      // Преобразуем вопросы: image -> imageUrl для совместимости с моделью
+      const questionsFormatted = parsedQuestions.map(q => ({
+        ...q,
+        imageUrl: q.image, // Переименовываем image в imageUrl
+        image: undefined // Удаляем старое поле
+      }));
+      
+      console.log('🔍 Questions with images:', questionsFormatted.filter(q => q.imageUrl).length);
+      
+      // Используем React Query mutation
+      await importTestMutation.mutateAsync({
+        questions: questionsFormatted,
         testName,
         groupId: selectedGroupId,
         subjectId: selectedGroup?.subjectId?._id || selectedGroup?.subjectId,
         classNumber: selectedGroup?.classNumber || 7,
       });
       
+      console.log('✅ Test imported successfully');
+      
       setStep('complete');
+      
+      // Перенаправляем с флагом refresh (React Query автоматически обновит кэш)
       setTimeout(() => {
-        navigate('/teacher/tests');
+        navigate('/teacher/tests', { state: { refresh: true } });
       }, 2000);
     } catch (err: any) {
+      console.error('❌ Error importing test:', err);
       setError(err.response?.data?.message || 'Saqlashda xatolik');
     } finally {
       setIsProcessing(false);
@@ -272,16 +294,28 @@ export default function ImportTestPage() {
     setParsedQuestions([...parsedQuestions, newQuestion]);
   };
 
-  const handleImageUpload = (questionIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (questionIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const updated = [...parsedQuestions];
-        updated[questionIndex].image = reader.result as string;
-        setParsedQuestions(updated);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    try {
+      console.log('🔄 Uploading image to server...');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const { data } = await api.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      console.log('✅ Image uploaded:', data.path);
+      
+      const updated = [...parsedQuestions];
+      updated[questionIndex].image = data.path; // Сохраняем путь к файлу
+      setParsedQuestions(updated);
+    } catch (error) {
+      console.error('❌ Error uploading image:', error);
+      alert('Rasmni yuklashda xatolik');
     }
   };
 

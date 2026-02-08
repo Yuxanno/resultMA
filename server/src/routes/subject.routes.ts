@@ -2,6 +2,7 @@ import express from 'express';
 import Subject from '../models/Subject';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../models/User';
+import { cacheService, CacheTTL, CacheInvalidation } from '../utils/cache';
 
 const router = express.Router();
 
@@ -20,8 +21,18 @@ router.get('/', authenticate, async (req, res) => {
     
     console.log('Финальный фильтр:', filter);
     
-    const subjects = await Subject.find(filter).sort({ nameUzb: 1 });
+    // Check cache
+    const cacheKey = `subjects:${req.query.isMandatory || 'all'}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
+    const subjects = await Subject.find(filter).sort({ nameUzb: 1 }).lean();
     console.log(`✅ Найдено предметов: ${subjects.length}`);
+    
+    // Cache the result
+    cacheService.set(cacheKey, subjects, CacheTTL.REFERENCE);
     
     res.json(subjects);
   } catch (error: any) {
@@ -36,6 +47,10 @@ router.post('/', authenticate, authorize(UserRole.SUPER_ADMIN), async (req, res)
     const subject = new Subject(req.body);
     await subject.save();
     console.log('Subject created:', subject);
+    
+    // Invalidate cache
+    CacheInvalidation.onSubjectChange();
+    
     res.status(201).json(subject);
   } catch (error: any) {
     console.error('Error creating subject:', error);
@@ -49,6 +64,10 @@ router.put('/:id', authenticate, authorize(UserRole.SUPER_ADMIN), async (req, re
     if (!subject) {
       return res.status(404).json({ message: 'Fan topilmadi' });
     }
+    
+    // Invalidate cache
+    CacheInvalidation.onSubjectChange();
+    
     res.json(subject);
   } catch (error: any) {
     console.error('Error updating subject:', error);
@@ -62,6 +81,10 @@ router.delete('/:id', authenticate, authorize(UserRole.SUPER_ADMIN), async (req,
     if (!subject) {
       return res.status(404).json({ message: 'Fan topilmadi' });
     }
+    
+    // Invalidate cache
+    CacheInvalidation.onSubjectChange();
+    
     res.json({ message: 'Fan o\'chirildi', subject });
   } catch (error: any) {
     console.error('Error deleting subject:', error);

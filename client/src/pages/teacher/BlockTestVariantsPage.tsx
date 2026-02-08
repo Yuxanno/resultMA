@@ -31,8 +31,10 @@ export default function BlockTestVariantsPage() {
       // Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
+      // Загружаем все блок-тесты с таким же классом и датой (с полными данными!)
+      const { data: allTests } = await api.get('/block-tests', {
+        params: { fields: 'full' }
+      });
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
       // Фильтруем тесты по классу и дате
@@ -40,8 +42,6 @@ export default function BlockTestVariantsPage() {
         const tDate = new Date(t.date).toISOString().split('T')[0];
         return t.classNumber === testData.classNumber && tDate === testDate;
       });
-      
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
       
       // Объединяем все предметы из всех тестов
       const allSubjects: any[] = [];
@@ -55,8 +55,6 @@ export default function BlockTestVariantsPage() {
           }
         });
       });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
       
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {

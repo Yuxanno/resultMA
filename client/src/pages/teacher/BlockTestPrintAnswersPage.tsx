@@ -36,8 +36,10 @@ export default function BlockTestPrintAnswersPage() {
       // Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
+      // Загружаем все блок-тесты с таким же классом и датой (с полными данными!)
+      const { data: allTests } = await api.get('/block-tests', {
+        params: { fields: 'full' }
+      });
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
       // Фильтруем тесты по классу и дате
@@ -131,12 +133,6 @@ export default function BlockTestPrintAnswersPage() {
       }
       
       setStudentVariants(variants);
-      console.log('📄 Total answer sheets generated:', variants.length);
-      console.log('📋 Sheet details:', variants.map(v => ({
-        name: v.student.fullName,
-        questions: v.questions.length,
-        variant: v.variantCode
-      })));
       
     } catch (err: any) {
       console.error('Error loading data:', err);

@@ -171,38 +171,47 @@ router.get('/students', authenticate, requirePermission('view_students'), async 
       .populate('branchId')
       .populate('directionId')
       .populate('subjectIds')
-      .sort({ fullName: 1 });
+      .sort({ fullName: 1 })
+      .lean();
     
-    // Загружаем группы для каждого студента
-    const studentsWithGroups = await Promise.all(students.map(async (student) => {
-      const studentGroups = await StudentGroup.find({ studentId: student._id })
-        .populate({
-          path: 'groupId',
-          select: 'name subjectId classNumber letter',
-          populate: {
-            path: 'subjectId',
-            select: 'nameUzb'
-          }
-        });
-      
+    // Загружаем группы для каждого студента - OPTIMIZED: Single query instead of N queries
+    const allStudentIds = students.map((s: any) => s._id);
+    const allStudentGroups = await StudentGroup.find({ 
+      studentId: { $in: allStudentIds } 
+    })
+      .populate({
+        path: 'groupId',
+        select: 'name subjectId classNumber letter',
+        populate: {
+          path: 'subjectId',
+          select: 'nameUzb'
+        }
+      })
+      .lean();
+    
+    // Create map for O(1) lookup
+    const groupsByStudent = new Map<string, any[]>();
+    allStudentGroups.forEach((sg: any) => {
+      const studentId = sg.studentId.toString();
+      if (!groupsByStudent.has(studentId)) {
+        groupsByStudent.set(studentId, []);
+      }
       // Фильтруем только валидные группы (где groupId не null)
-      const groups = studentGroups
-        .filter(sg => sg.groupId != null)
-        .map(sg => {
-          const group = sg.groupId as any;
-          return {
-            _id: group._id,
-            name: group.name,
-            subjectId: group.subjectId,
-            classNumber: group.classNumber,
-            letter: group.letter
-          };
+      if (sg.groupId != null) {
+        groupsByStudent.get(studentId)!.push({
+          _id: sg.groupId._id,
+          name: sg.groupId.name,
+          subjectId: sg.groupId.subjectId,
+          classNumber: sg.groupId.classNumber,
+          letter: sg.groupId.letter
         });
-      
-      return {
-        ...student.toObject(),
-        groups
-      };
+      }
+    });
+    
+    // Map students with their groups
+    const studentsWithGroups = students.map((student: any) => ({
+      ...student,
+      groups: groupsByStudent.get(student._id.toString()) || []
     }));
     
     res.json(studentsWithGroups);

@@ -29,9 +29,7 @@ const ConfigureBlockTestPage = lazy(() => import('../pages/teacher/ConfigureBloc
 const ConfigureTestPage = lazy(() => import('../pages/teacher/ConfigureTestPage'));
 const TeacherDashboardPage = lazy(() => import('../pages/teacher/TeacherDashboardPage'));
 const TestViewPage = lazy(() => import('../pages/teacher/TestViewPage'));
-const TestVariantsPage = lazy(() => import('../pages/teacher/TestVariantsPage'));
 const TestPrintPage = lazy(() => import('../pages/teacher/TestPrintPage'));
-const BlockTestViewPage = lazy(() => import('../pages/teacher/BlockTestViewPage'));
 const BlockTestVariantsPage = lazy(() => import('../pages/teacher/BlockTestVariantsPage'));
 const BlockTestPrintPage = lazy(() => import('../pages/teacher/BlockTestPrintPage'));
 const EditBlockTestPage = lazy(() => import('../pages/teacher/EditBlockTestPage'));
@@ -60,19 +58,12 @@ export default function TeacherLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  console.log('TeacherLayout - User:', user);
-  console.log('TeacherLayout - Permissions:', user?.permissions);
-
   const isActive = (path: string) => location.pathname === path;
 
   // Ruxsat berilgan menyu elementlarini filtrlash
   const visibleMenuItems = menuItems.filter(item => {
-    const hasPerm = hasPermission(item.permission);
-    console.log(`Menu item: ${item.label}, Permission: ${item.permission}, Has: ${hasPerm}`);
-    return hasPerm;
+    return hasPermission(item.permission);
   });
-
-  console.log('Visible menu items:', visibleMenuItems.length, visibleMenuItems);
 
   // Bottom navigation uchun asosiy 4 ta element + "Ko'proq" tugmasi
   const bottomNavItems = visibleMenuItems.slice(0, 3);
@@ -341,18 +332,17 @@ export default function TeacherLayout() {
               <Route path="/tests/create" element={<CreateTestPage />} />
               <Route path="/tests/import" element={<ImportTestPage />} />
               <Route path="/tests/edit/:id" element={<CreateTestPage />} />
-              <Route path="/tests/:id/view" element={<TestViewPage />} />
+              <Route path="/tests/:id" element={<TestViewPage />} />
               <Route path="/tests/:id/configure" element={<ConfigureTestPage />} />
-              <Route path="/tests/:id/variants" element={<TestVariantsPage />} />
               <Route path="/tests/:id/print/:type" element={<TestPrintPage />} />
               <Route path="/block-tests" element={<BlockTestsPage />} />
               <Route path="/block-tests/create" element={<CreateBlockTestPage />} />
               <Route path="/block-tests/import" element={<ImportBlockTestPage />} />
               <Route path="/block-tests/merge" element={<MergeBlockTestsPage />} />
               <Route path="/block-tests/:id/configure" element={<ConfigureBlockTestPage />} />
+              <Route path="/block-tests/:id" element={<ConfigureBlockTestPage />} />
               <Route path="/block-tests/:id/edit" element={<EditBlockTestPage />} />
               <Route path="/block-tests/:id/edit-subject/:subjectIndex" element={<EditBlockTestSubjectPage />} />
-              <Route path="/block-tests/:id/view" element={<BlockTestViewPage />} />
               <Route path="/block-tests/:id/variants" element={<BlockTestVariantsPage />} />
               <Route path="/block-tests/:id/print/:type" element={<BlockTestPrintPage />} />
               <Route path="/titul-generator" element={<TitulGeneratorPage />} />

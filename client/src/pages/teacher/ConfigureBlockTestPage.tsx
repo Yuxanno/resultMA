@@ -62,17 +62,16 @@ export default function ConfigureBlockTestPage() {
       // Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
-      // Фильтруем тесты по классу и дате
-      const sameGroupTests = allTests.filter((t: any) => {
-        const tDate = new Date(t.date).toISOString().split('T')[0];
-        return t.classNumber === testData.classNumber && tDate === testDate;
+      // Загружаем ТОЛЬКО блок-тесты с таким же классом и датой (БЕЗ полных данных!)
+      const { data: sameGroupTests } = await api.get('/block-tests', {
+        params: { 
+          classNumber: testData.classNumber,
+          date: testDate,
+          fields: 'basic' // Загружаем только базовые данные
+        }
       });
-      
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
       
       // Объединяем все предметы из всех тестов
       const allSubjects: any[] = [];
@@ -86,8 +85,6 @@ export default function ConfigureBlockTestPage() {
           }
         });
       });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
       
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {
@@ -104,7 +101,7 @@ export default function ConfigureBlockTestPage() {
       });
       setStudents(studentsData);
       
-      // Загружаем конфигурации учеников ПАРТИЯМИ (по 5 за раз)
+      // Загружаем конфигурации учеников ПАРТИЯМИ (по 10 за раз)
       const studentIds = studentsData.map((s: any) => s._id);
       
       // Используем batch endpoint для оптимизации
@@ -115,10 +112,8 @@ export default function ConfigureBlockTestPage() {
         });
         configs = batchConfigs;
       } catch (batchError) {
-        console.warn('Batch endpoint failed, using individual requests');
-        
-        // Fallback: загружаем по 5 за раз
-        const batchSize = 5;
+        // Fallback: загружаем по 10 за раз (увеличили с 5)
+        const batchSize = 10;
         for (let i = 0; i < studentsData.length; i += batchSize) {
           const batch = studentsData.slice(i, i + batchSize);
           
@@ -134,7 +129,6 @@ export default function ConfigureBlockTestPage() {
                     const { data } = await api.post(`/student-test-configs/create-for-block-test/${student._id}/${id}`);
                     return data;
                   } catch (createErr) {
-                    console.error('Error creating config:', createErr);
                     return null;
                   }
                 }
@@ -144,17 +138,11 @@ export default function ConfigureBlockTestPage() {
           );
           
           configs.push(...batchResults);
-          
-          // Небольшая задержка между партиями
-          if (i + batchSize < studentsData.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
         }
       }
       
-      setStudentConfigs(configs);
+      setStudentConfigs(configs.filter(c => c !== null));
     } catch (err: any) {
-      console.error('Error loading data:', err);
       error('Ma\'lumotlarni yuklashda xatolik');
     } finally {
       setLoading(false);
@@ -224,8 +212,6 @@ export default function ConfigureBlockTestPage() {
 
   const handlePrint = async (selectedStudentIds: string[], fontSize: number = 12) => {
     try {
-      console.log('handlePrint called with:', { selectedStudentIds, printMode, id, fontSize });
-      
       const studentIdsParam = selectedStudentIds.join(',');
       let url = '';
       
@@ -240,8 +226,6 @@ export default function ConfigureBlockTestPage() {
           url = `/teacher/block-tests/${id}/print-answers?students=${studentIdsParam}&fontSize=${fontSize}`;
           break;
       }
-      
-      console.log('Opening URL:', url);
       
       // Используем navigate вместо window.open для сохранения контекста
       navigate(url);

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import User, { UserRole } from '../models/User';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { invalidateCache } from '../middleware/cache';
+import { cacheService, CacheTTL, CacheInvalidation } from '../utils/cache';
 
 const router = express.Router();
 
@@ -21,10 +22,18 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     
     console.log('Фильтр:', filter);
     
+    // Check cache
+    const cacheKey = `teachers:${req.user?.branchId || 'all'}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
     const teachers = await User.find(filter)
       .select('-password')
       .populate('branchId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     
     console.log(`✅ Найдено учителей: ${teachers.length}`);
     if (teachers.length > 0) {
@@ -38,6 +47,9 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         });
       });
     }
+    
+    // Cache the result
+    cacheService.set(cacheKey, teachers, CacheTTL.LIST);
     
     res.json(teachers);
   } catch (error: any) {
@@ -85,6 +97,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       .populate('branchId');
     
     // Инвалидируем кэш учителей
+    CacheInvalidation.onTeacherChange();
     await invalidateCache('/api/teachers');
     
     res.status(201).json(populatedTeacher);
@@ -136,6 +149,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
       .populate('branchId');
     
     // Инвалидируем кэш учителей
+    CacheInvalidation.onTeacherChange();
     await invalidateCache('/api/teachers');
     
     res.json(updatedTeacher);
@@ -173,6 +187,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
     console.log('✅ Учитель удален из БД');
     
     // Инвалидируем кэш учителей и групп
+    CacheInvalidation.onTeacherChange();
     await Promise.all([
       invalidateCache('/api/teachers'),
       invalidateCache('/api/groups')

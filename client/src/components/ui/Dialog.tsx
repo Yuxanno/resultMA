@@ -15,16 +15,16 @@ export function Dialog({ open, onClose, children, className, closeOnOverlayClick
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={closeOnOverlayClick ? onClose : undefined} />
-      <div className={cn('relative bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[90vh] overflow-y-auto', 
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200" onClick={closeOnOverlayClick ? onClose : undefined} />
+      <div className={cn('relative bg-white rounded-2xl shadow-sm border border-gray-100 w-full mx-4 max-h-[90vh] overflow-y-auto', 
         'max-w-[95vw] sm:max-w-2xl',
         className
       )}>
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 hover:bg-gray-100 rounded-lg transition-colors z-10"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 hover:bg-gray-50 rounded-xl transition-colors z-10"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5 text-gray-500" />
         </button>
         {children}
       </div>
@@ -33,13 +33,13 @@ export function Dialog({ open, onClose, children, className, closeOnOverlayClick
 }
 
 export function DialogHeader({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('p-4 sm:p-6 border-b', className)}>{children}</div>;
+  return <div className={cn('p-5 sm:p-6 border-b border-gray-100', className)}>{children}</div>;
 }
 
 export function DialogTitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <h2 className={cn('text-xl sm:text-2xl font-bold text-gray-900 pr-8', className)}>{children}</h2>;
+  return <h2 className={cn('text-xl sm:text-2xl font-bold text-gray-900 pr-10 tracking-tight', className)}>{children}</h2>;
 }
 
 export function DialogContent({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('p-4 sm:p-6', className)}>{children}</div>;
+  return <div className={cn('p-5 sm:p-6', className)}>{children}</div>;
 }

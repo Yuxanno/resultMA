@@ -18,26 +18,16 @@ export class TestImportService {
    */
   static async parseExcel(filePath: string): Promise<ParsedQuestion[]> {
     try {
-      console.log('Reading Excel file:', filePath);
       const workbook = XLSX.readFile(filePath);
-      console.log('Workbook sheets:', workbook.SheetNames);
-      
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const data: any[] = XLSX.utils.sheet_to_json(worksheet);
-
-      console.log('Excel rows:', data.length);
-      console.log('First row:', JSON.stringify(data[0]));
-      console.log('Column names:', Object.keys(data[0] || {}));
 
       const questions: ParsedQuestion[] = [];
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        console.log(`Processing row ${i + 1}:`, JSON.stringify(row));
 
-        // Expected columns: Savol, A, B, C, D, To'g'ri javob, Ball
-        // Or: Question, A, B, C, D, Correct Answer, Points
         const questionText = row['Savol'] || row['Question'] || row['savol'] || row['question'] || '';
         const variantA = row['A'] || row['a'] || '';
         const variantB = row['B'] || row['b'] || '';
@@ -46,12 +36,7 @@ export class TestImportService {
         const correctAnswer = (row["To'g'ri javob"] || row['Correct Answer'] || row['correct'] || row['Javob'] || 'A').toString().toUpperCase();
         const points = parseInt(row['Ball'] || row['Points'] || row['points'] || '1');
 
-        console.log('Parsed:', { questionText, variantA, variantB, correctAnswer });
-
-        if (!questionText) {
-          console.log('Skipping row - no question text');
-          continue;
-        }
+        if (!questionText) continue;
 
         const variants = [];
         if (variantA) variants.push({ letter: 'A', text: variantA.toString() });
@@ -66,16 +51,11 @@ export class TestImportService {
             correctAnswer: correctAnswer.charAt(0),
             points,
           });
-          console.log(`✓ Added question ${questions.length}`);
-        } else {
-          console.log('Skipping row - not enough variants:', variants.length);
         }
       }
 
-      console.log('Total questions parsed from Excel:', questions.length);
       return questions;
     } catch (error: any) {
-      console.error('Error parsing Excel:', error);
       throw new Error(`Excel faylni o'qishda xatolik: ${error.message}`);
     }
   }
@@ -89,20 +69,15 @@ export class TestImportService {
       const result = await mammoth.extractRawText({ buffer });
       const text = result.value;
 
-      console.log('Word text extracted, length:', text.length);
-
       // Try AI parsing first
       const aiQuestions = await GroqService.parseTestWithAI(text);
       if (aiQuestions.length > 0) {
-        console.log('✅ Using AI-parsed questions');
         return GroqService.convertToOurFormat(aiQuestions);
       }
 
       // Fallback to regex parsing
-      console.log('⚠️ AI parsing failed, using regex fallback');
       return this.parseTextContent(text);
     } catch (error: any) {
-      console.error('Error parsing Word:', error);
       throw new Error(`Word faylni o'qishda xatolik: ${error.message}`);
     }
   }
@@ -114,48 +89,29 @@ export class TestImportService {
    */
   static async parseImage(filePath: string): Promise<ParsedQuestion[]> {
     try {
-      const { data: { text } } = await Tesseract.recognize(filePath, 'uzb+eng', {
-        logger: (m) => console.log(m),
-      });
-
-      console.log('OCR text extracted, length:', text.length);
+      const { data: { text } } = await Tesseract.recognize(filePath, 'uzb+eng');
 
       // Try AI parsing first
       const aiQuestions = await GroqService.parseTestWithAI(text);
       if (aiQuestions.length > 0) {
-        console.log('✅ Using AI-parsed questions');
         return GroqService.convertToOurFormat(aiQuestions);
       }
 
       // Fallback to regex parsing
-      console.log('⚠️ AI parsing failed, using regex fallback');
       return this.parseTextContent(text);
     } catch (error: any) {
-      console.error('Error parsing image:', error);
       throw new Error(`Rasmni o'qishda xatolik: ${error.message}`);
     }
   }
 
   /**
    * Parse text content and extract questions
-   * Expected format:
-   * 1. Question text?
-   * A) Variant A
-   * B) Variant B
-   * C) Variant C
-   * D) Variant D
-   * To'g'ri javob: A
-   * Ball: 1
    */
   private static parseTextContent(text: string): ParsedQuestion[] {
     const questions: ParsedQuestion[] = [];
     
-    console.log('Parsing text content, length:', text.length);
-    
     // Split by question numbers (1., 2., 3. or 1), 2), 3))
     const questionBlocks = text.split(/\n(?=\d+[\.\)])/);
-    
-    console.log('Found question blocks:', questionBlocks.length);
 
     for (const block of questionBlocks) {
       if (!block.trim()) continue;
@@ -216,11 +172,9 @@ export class TestImportService {
           correctAnswer,
           points,
         });
-        console.log(`Parsed question ${questions.length}:`, questionText.substring(0, 50));
       }
     }
 
-    console.log('Total questions parsed:', questions.length);
     return questions;
   }
 

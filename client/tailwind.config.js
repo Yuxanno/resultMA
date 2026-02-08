@@ -4,6 +4,17 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // Safelist for dynamically generated classes
+  safelist: [
+    // Gradient colors that might be generated dynamically
+    {
+      pattern: /^(from|to|via)-(blue|indigo|purple|green|red|yellow|orange|gray)-(400|500|600|700)$/,
+    },
+    // Background colors
+    {
+      pattern: /^bg-(blue|indigo|purple|green|red|yellow|orange|gray)-(50|100|200|500|600)$/,
+    },
+  ],
   theme: {
     screens: {
       'xs': '475px',

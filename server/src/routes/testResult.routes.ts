@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import TestResult from '../models/TestResult';
+import { cacheService, CacheTTL, CacheInvalidation } from '../utils/cache';
 
 const router = express.Router();
 
@@ -14,11 +15,22 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       filter.branchId = req.user?.branchId;
     }
     
+    // Check cache
+    const cacheKey = `testResults:all:${req.user?.branchId || 'all'}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
     const testResults = await TestResult.find(filter)
       .populate('studentId')
       .populate('testId')
       .populate('blockTestId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Cache the result
+    cacheService.set(cacheKey, testResults, CacheTTL.STATISTICS);
     
     res.json(testResults);
   } catch (error: any) {
@@ -30,10 +42,18 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 // Get test result by ID
 router.get('/:id', authenticate, async (req: AuthRequest, res) => {
   try {
+    // Check cache
+    const cacheKey = `testResults:id:${req.params.id}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
     const testResult = await TestResult.findById(req.params.id)
       .populate('studentId')
       .populate('testId')
-      .populate('blockTestId');
+      .populate('blockTestId')
+      .lean();
     
     if (!testResult) {
       return res.status(404).json({ message: 'Test natijasi topilmadi' });
@@ -43,6 +63,9 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
     if (req.user?.role !== 'SUPER_ADMIN' && testResult.branchId?.toString() !== req.user?.branchId?.toString()) {
       return res.status(403).json({ message: 'Ruxsat yo\'q' });
     }
+    
+    // Cache the result
+    cacheService.set(cacheKey, testResult, CacheTTL.STATISTICS);
     
     res.json(testResult);
   } catch (error: any) {
@@ -61,10 +84,21 @@ router.get('/student/:studentId', authenticate, async (req: AuthRequest, res) =>
       filter.branchId = req.user?.branchId;
     }
     
+    // Check cache
+    const cacheKey = `testResults:student:${req.params.studentId}:${req.user?.branchId || 'all'}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
     const testResults = await TestResult.find(filter)
       .populate('testId')
       .populate('blockTestId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Cache the result
+    cacheService.set(cacheKey, testResults, CacheTTL.STATISTICS);
     
     res.json(testResults);
   } catch (error: any) {
@@ -83,9 +117,20 @@ router.get('/test/:testId', authenticate, async (req: AuthRequest, res) => {
       filter.branchId = req.user?.branchId;
     }
     
+    // Check cache
+    const cacheKey = `testResults:test:${req.params.testId}:${req.user?.branchId || 'all'}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
     const testResults = await TestResult.find(filter)
       .populate('studentId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Cache the result
+    cacheService.set(cacheKey, testResults, CacheTTL.STATISTICS);
     
     res.json(testResults);
   } catch (error: any) {

@@ -9,7 +9,8 @@ router.get('/test/:testId', authenticate, async (req: AuthRequest, res) => {
   try {
     const variants = await StudentVariant.find({ testId: req.params.testId })
       .populate('studentId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     res.json(variants);
   } catch (error) {
     console.error('Error fetching test variants:', error);
@@ -22,7 +23,8 @@ router.get('/block-test/:blockTestId', authenticate, async (req: AuthRequest, re
   try {
     const variants = await StudentVariant.find({ testId: req.params.blockTestId })
       .populate('studentId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     
     console.log(`📦 API: Returning ${variants.length} variants for block test ${req.params.blockTestId}`);
     if (variants.length > 0) {
@@ -47,7 +49,8 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
   try {
     const variant = await StudentVariant.findById(req.params.id)
       .populate('studentId')
-      .populate('testId');
+      .populate('testId')
+      .lean();
     
     if (!variant) {
       return res.status(404).json({ message: 'Variant topilmadi' });
@@ -67,7 +70,8 @@ router.get('/by-code/:variantCode', authenticate, async (req: AuthRequest, res) 
       variantCode: req.params.variantCode 
     })
       .populate('studentId')
-      .populate('testId');
+      .populate('testId')
+      .lean();
     
     if (!variant) {
       return res.status(404).json({ message: 'Variant topilmadi' });
@@ -91,7 +95,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     
     const variants = await StudentVariant.find(query)
       .populate('studentId')
-      .populate('testId');
+      .populate('testId')
+      .lean();
     
     res.json(variants);
   } catch (error) {

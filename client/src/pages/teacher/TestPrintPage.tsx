@@ -6,7 +6,7 @@ import MathText from '@/components/MathText';
 import { Printer, ArrowLeft, Settings, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import AnswerSheet from '@/components/AnswerSheet';
-import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, PageBreak } from 'docx';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, PageBreak, ImageRun } from 'docx';
 import { saveAs } from 'file-saver';
 
 export default function TestPrintPage() {
@@ -33,8 +33,12 @@ export default function TestPrintPage() {
   const loadSelectedStudents = () => {
     const stored = localStorage.getItem('selectedStudents');
     if (stored) {
+      console.log('📋 Loading selected students from localStorage:', stored);
       setSelectedStudents(JSON.parse(stored));
-      localStorage.removeItem('selectedStudents');
+      // НЕ удаляем из localStorage сразу - оставляем для перезагрузки страницы
+      // localStorage.removeItem('selectedStudents');
+    } else {
+      console.log('⚠️ No selected students found in localStorage');
     }
   };
 
@@ -105,6 +109,65 @@ export default function TestPrintPage() {
     return cleaned.trim();
   };
 
+  // Функция для загрузки изображения и конвертации для Word
+  const fetchImageAsBase64 = async (imageUrl: string): Promise<{ data: Uint8Array; width: number; height: number } | null> => {
+    try {
+      // Создаем полный URL (НЕ используем api.get - он добавляет /api к пути!)
+      const fullUrl = imageUrl.startsWith('http') 
+        ? imageUrl 
+        : `${window.location.origin}${imageUrl}`;
+      
+      // Используем fetch напрямую (без api wrapper)
+      const response = await fetch(fullUrl);
+      
+      if (!response.ok) {
+        return null;
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Создаем Uint8Array из arraybuffer
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Создаем blob для получения размеров
+      const blob = new Blob([uint8Array]);
+      const imageUrl_temp = URL.createObjectURL(blob);
+      
+      // Получаем размеры изображения
+      return new Promise((resolve) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          // Ограничиваем размер изображения для Word (макс 400px ширина)
+          const maxWidth = 400;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            const ratio = maxWidth / width;
+            width = maxWidth;
+            height = Math.round(height * ratio);
+          }
+          
+          // Освобождаем память
+          URL.revokeObjectURL(imageUrl_temp);
+          
+          resolve({ data: uint8Array, width, height });
+        };
+        
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl_temp);
+          resolve(null);
+        };
+        
+        img.src = imageUrl_temp;
+      });
+    } catch (error) {
+      console.error('❌ Error fetching image:', error);
+      return null;
+    }
+  };
+
   const handleDownloadWord = async () => {
     if (selectedStudents.length === 0) {
       alert('O\'quvchilar tanlanmagan');
@@ -173,33 +236,82 @@ export default function TestPrintPage() {
             })
           );
 
-          // Варианты ответов в одну строку
+          // Изображение вопроса
+          if (question.imageUrl) {
+            const imageData = await fetchImageAsBase64(question.imageUrl);
+            if (imageData) {
+              try {
+                sections.push(
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        type: 'png',
+                        data: imageData.data,
+                        transformation: {
+                          width: imageData.width,
+                          height: imageData.height
+                        }
+                      })
+                    ],
+                    spacing: { before: 100, after: 100 },
+                    indent: { left: 400 }
+                  })
+                );
+              } catch (err) {
+                // Skip image on error
+              }
+            }
+          }
+
+          // Варианты ответов
           if (question.variants && question.variants.length > 0) {
-            const variantsText: TextRun[] = [];
-            question.variants.forEach((qVariant: any, idx: number) => {
+            for (const qVariant of question.variants) {
               const optionText = cleanText(qVariant.text);
-              variantsText.push(
-                new TextRun({
-                  text: `${qVariant.letter}) `,
-                  bold: true
-                }),
-                new TextRun({
-                  text: optionText
+              
+              // Текст варианта
+              sections.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${qVariant.letter}) `,
+                      bold: true
+                    }),
+                    new TextRun({
+                      text: optionText
+                    })
+                  ],
+                  spacing: { after: 50 },
+                  indent: { left: 400 }
                 })
               );
-              // Добавляем разделитель между вариантами (кроме последнего)
-              if (idx < question.variants.length - 1) {
-                variantsText.push(new TextRun({ text: '     ' })); // 5 пробелов между вариантами
+
+              // Изображение варианта
+              if (qVariant.imageUrl) {
+                const variantImageData = await fetchImageAsBase64(qVariant.imageUrl);
+                if (variantImageData) {
+                  try {
+                    sections.push(
+                      new Paragraph({
+                        children: [
+                          new ImageRun({
+                            type: 'png',
+                            data: variantImageData.data,
+                            transformation: {
+                              width: variantImageData.width,
+                              height: variantImageData.height
+                            }
+                          })
+                        ],
+                        spacing: { before: 50, after: 50 },
+                        indent: { left: 600 }
+                      })
+                    );
+                  } catch (err) {
+                    // Skip image on error
+                  }
+                }
               }
-            });
-            
-            sections.push(
-              new Paragraph({
-                children: variantsText,
-                spacing: { after: 100 },
-                indent: { left: 400 }
-              })
-            );
+            }
           }
         }
 
@@ -211,16 +323,7 @@ export default function TestPrintPage() {
 
       const doc = new Document({
         sections: [{
-          properties: {
-            // Если выбрано 2 колонки, применяем колоночную верстку
-            ...(columnsCount === 2 && {
-              column: {
-                space: 708, // Расстояние между колонками (0.5 дюйма = 708 twips)
-                count: 2,
-                separate: true
-              }
-            })
-          },
+          properties: {},
           children: sections
         }]
       });
@@ -229,7 +332,6 @@ export default function TestPrintPage() {
       const fileName = `${test.subjectId?.nameUzb || 'test'}-${test.classNumber || 10}-sinf.docx`;
       saveAs(blob, fileName);
     } catch (error) {
-      console.error('Error generating Word document:', error);
       alert('Word faylini yaratishda xatolik yuz berdi');
     }
   };
@@ -314,13 +416,21 @@ export default function TestPrintPage() {
                                 <MathText text={question.text} />
                               </span>
                             </div>
-                            {question.imageUrl && testsPerPage === 1 && (
-                              <div className="my-2 ml-6">
+                            {question.imageUrl && (
+                              <div className="my-2 ml-6 print-image-container">
                                 <img 
                                   src={question.imageUrl} 
                                   alt="Question" 
-                                  className="max-w-full h-auto"
-                                  style={{ maxHeight: '200px', objectFit: 'contain' }}
+                                  className="max-w-full h-auto print-image"
+                                  style={{ 
+                                    maxHeight: testsPerPage === 1 ? '200px' : '150px', 
+                                    objectFit: 'contain',
+                                    display: 'block'
+                                  }}
+                                  onLoad={(e) => {
+                                    // Force image to be visible in print
+                                    (e.target as HTMLImageElement).style.opacity = '1';
+                                  }}
                                 />
                               </div>
                             )}
@@ -524,13 +634,35 @@ export default function TestPrintPage() {
             background: white !important;
           }
           
+          /* КРИТИЧНО: Показываем изображения при печати */
+          .print-image-container {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          
+          .print-image {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            max-width: 100% !important;
+            height: auto !important;
+          }
+          
+          img {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            page-break-inside: avoid;
+          }
+          
           @page {
             size: A4 portrait;
             margin: 1cm;
             padding: 0;
           }
           
-          /* Убираем все границы layout */}
+          /* Убираем все границы layout */
           aside, nav, header, .sidebar { display: none !important; }
           main { margin: 0 !important; padding: 0 !important; }
         }

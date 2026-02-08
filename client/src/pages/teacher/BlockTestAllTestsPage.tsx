@@ -33,8 +33,10 @@ export default function BlockTestAllTestsPage() {
       // 1. Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
       
-      // 2. Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
+      // 2. Загружаем все блок-тесты с таким же классом и датой (с полными данными!)
+      const { data: allTests } = await api.get('/block-tests', {
+        params: { fields: 'full' }
+      });
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
       const sameGroupTests = allTests.filter((t: any) => {
@@ -163,7 +165,7 @@ export default function BlockTestAllTestsPage() {
                   options: q.variants?.map((v: any) => v.text) || q.options || [],
                   correctAnswer: q.correctAnswer || '',
                   points: q.points || 1,
-                  image: q.image
+                  image: q.imageUrl || q.image // Поддержка обоих полей
                 });
                 
                 questionsAddedToCurrentSubject++;
@@ -194,7 +196,7 @@ export default function BlockTestAllTestsPage() {
                       options: q.variants?.map((v: any) => v.text) || q.options || [],
                       correctAnswer: q.correctAnswer || '',
                       points: q.points || 1,
-                      image: q.image
+                      image: q.imageUrl || q.image // Поддержка обоих полей
                     }));
                   
                   questions.push(...subjectQuestions);

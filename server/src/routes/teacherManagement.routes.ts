@@ -25,14 +25,15 @@ router.get('/my-groups', authenticate, async (req: AuthRequest, res) => {
     const groups = await Group.find({ teacherId: req.user.id })
       .populate('branchId', 'name location')
       .populate('subjectId', 'nameUzb')
-      .sort({ name: 1 });
+      .sort({ name: 1 })
+      .lean();
 
     // Har bir guruh uchun o'quvchilar sonini hisoblash
     const groupsWithCount = await Promise.all(
       groups.map(async (group) => {
         const studentsCount = await StudentGroup.countDocuments({ groupId: group._id });
         return {
-          ...group.toObject(),
+          ...group,
           studentsCount
         };
       })

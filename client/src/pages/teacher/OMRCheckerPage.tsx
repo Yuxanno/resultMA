@@ -117,21 +117,6 @@ export default function OMRCheckerPage() {
       clearInterval(progressInterval);
       setScanProgress(100);
       
-      console.log('📊 OMR Scan Result:', {
-        success: response.data.success,
-        qr_found: response.data.qr_found,
-        total_questions: response.data.total_questions,
-        detected_answers_count: response.data.detected_answers ? Object.keys(response.data.detected_answers).length : 0,
-        first_10_detected: response.data.detected_answers ? 
-          Object.keys(response.data.detected_answers).slice(0, 10).map(key => 
-            `Q${key}: ${response.data.detected_answers[parseInt(key)]}`
-          ) : [],
-        comparison_details_count: response.data.comparison?.details?.length || 0,
-        first_10_comparison: response.data.comparison?.details?.slice(0, 10).map((d: any) => 
-          `Q${d.question}: student="${d.student_answer}", correct="${d.correct_answer}", match=${d.is_correct}`
-        ) || []
-      });
-      
       setTimeout(() => {
         setResult(response.data);
         if (response.data.success) {

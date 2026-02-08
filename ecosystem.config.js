@@ -8,7 +8,7 @@ module.exports = {
     name: 'mathacademy-server',
     script: './server/dist/index.js',
     cwd: '/var/www/resultMA',  // Absolute path for production
-    instances: 1,
+    instances: 2, // Use 2-4 instances for better CPU utilization
     exec_mode: 'cluster',
     env: {
       NODE_ENV: 'production',

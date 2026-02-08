@@ -17,11 +17,11 @@ const sizeConfig = {
 };
 
 const variantConfig = {
-  default: 'bg-primary',
-  success: 'bg-success',
-  warning: 'bg-warning',
-  error: 'bg-destructive',
-  gradient: 'bg-gradient-to-r from-primary via-secondary to-primary bg-[length:200%_100%] animate-gradient-shift',
+  default: 'bg-blue-600',
+  success: 'bg-green-600',
+  warning: 'bg-orange-500',
+  error: 'bg-red-600',
+  gradient: 'bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 bg-[length:200%_100%] animate-gradient-shift',
 };
 
 export function Progress({
@@ -38,18 +38,18 @@ export function Progress({
   // Auto-select variant based on percentage if default
   let finalVariant = variant;
   if (variant === 'default') {
-    if (percentage >= 100) {
-      finalVariant = 'error';
-    } else if (percentage >= 80) {
+    if (percentage >= 80) {
+      finalVariant = 'success';
+    } else if (percentage >= 60) {
       finalVariant = 'warning';
     } else {
-      finalVariant = 'success';
+      finalVariant = 'error';
     }
   }
 
   return (
     <div className={cn('w-full', className)}>
-      <div className={cn('w-full bg-muted rounded-full overflow-hidden', sizeConfig[size])}>
+      <div className={cn('w-full bg-gray-100 rounded-full overflow-hidden', sizeConfig[size])}>
         <div
           className={cn(
             'h-full transition-all duration-500 ease-out rounded-full',
@@ -60,7 +60,7 @@ export function Progress({
         />
       </div>
       {showLabel && (
-        <div className="mt-2 text-sm font-medium text-muted-foreground text-right">
+        <div className="mt-2 text-sm font-medium text-gray-600 text-right">
           {Math.round(percentage)}%
         </div>
       )}
@@ -93,10 +93,10 @@ export function CircularProgress({
   const offset = circumference - (percentage / 100) * circumference;
 
   const colorConfig = {
-    default: 'stroke-primary',
-    success: 'stroke-success',
-    warning: 'stroke-warning',
-    error: 'stroke-destructive',
+    default: 'stroke-blue-600',
+    success: 'stroke-green-600',
+    warning: 'stroke-orange-500',
+    error: 'stroke-red-600',
   };
 
   return (
@@ -109,7 +109,7 @@ export function CircularProgress({
           stroke="currentColor"
           strokeWidth={strokeWidth}
           fill="none"
-          className="text-muted"
+          className="text-gray-100"
         />
         <circle
           cx={size / 2}

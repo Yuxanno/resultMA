@@ -637,46 +637,67 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 /**
- * Enhanced Navbar Scroll Effect
+ * Enhanced Navbar Scroll Effect - Throttled
  */
+let scrollTimeout;
 window.addEventListener('scroll', function() {
-  const navbar = document.querySelector('.navbar');
+  if (scrollTimeout) return;
   
-  if (window.scrollY > 50) {
-    navbar.classList.add('scrolled');
-  } else {
-    navbar.classList.remove('scrolled');
-  }
-});
+  scrollTimeout = setTimeout(() => {
+    const navbar = document.querySelector('.navbar');
+    
+    if (navbar) {
+      if (window.scrollY > 50) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+    }
+    
+    scrollTimeout = null;
+  }, 100);
+}, { passive: true });
 
 /**
- * Active Nav Link on Scroll
+ * Active Nav Link on Scroll - Throttled
  */
+let navScrollTimeout;
 window.addEventListener('scroll', function() {
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('.menu-link .nav-link');
+  if (navScrollTimeout) return;
   
-  let current = '';
-  
-  sections.forEach(section => {
-    const sectionTop = section.offsetTop;
-    const sectionHeight = section.clientHeight;
+  navScrollTimeout = setTimeout(() => {
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.menu-link .nav-link');
     
-    if (window.pageYOffset >= sectionTop - 100) {
-      current = section.getAttribute('id');
+    if (!sections.length || !navLinks.length) {
+      navScrollTimeout = null;
+      return;
     }
-  });
-  
-  navLinks.forEach(link => {
-    link.classList.remove('active');
-    if (link.getAttribute('href') === `#${current}`) {
-      link.classList.add('active');
-    }
-    if (current === '' && link.getAttribute('href') === './') {
-      link.classList.add('active');
-    }
-  });
-});
+    
+    let current = '';
+    
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop;
+      const sectionHeight = section.clientHeight;
+      
+      if (window.pageYOffset >= sectionTop - 100) {
+        current = section.getAttribute('id');
+      }
+    });
+    
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === `#${current}`) {
+        link.classList.add('active');
+      }
+      if (current === '' && link.getAttribute('href') === './') {
+        link.classList.add('active');
+      }
+    });
+    
+    navScrollTimeout = null;
+  }, 100);
+}, { passive: true });
 
 /**
  * Close mobile menu on link click

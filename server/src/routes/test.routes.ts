@@ -6,7 +6,6 @@ import QRCode from 'qrcode';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../models/User';
-import { cacheMiddleware, invalidateCache } from '../middleware/cache';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -54,8 +53,9 @@ const upload = multer({
   }
 });
 
-router.get('/', authenticate, cacheMiddleware(180), async (req: AuthRequest, res) => {
+router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
+    const fields = req.query.fields as string;
     const filter: any = {};
     
     // Filter by branch for non-super admins
@@ -68,25 +68,42 @@ router.get('/', authenticate, cacheMiddleware(180), async (req: AuthRequest, res
       filter.createdBy = req.user.id;
     }
     
-    // Optimized query - exclude questions from list
-    const tests = await Test.find(filter)
-      .populate('groupId', 'name classNumber letter')
-      .populate('subjectId', 'nameUzb nameRu')
-      .populate('createdBy', 'fullName')
-      .select('-questions')
+    console.log('🔍 Fetching tests with filter:', filter);
+    
+    let query = Test.find(filter);
+    
+    // Поддержка разных уровней детализации
+    if (fields === 'minimal') {
+      query = query.select('name createdAt _id');
+    } else if (fields === 'full') {
+      query = query
+        .populate('groupId', 'name classNumber letter')
+        .populate('subjectId', 'nameUzb nameRu');
+    } else {
+      // По умолчанию - минимальные данные
+      query = query.select('name createdAt _id');
+    }
+    
+    const tests = await query
       .sort({ createdAt: -1 })
       .lean()
       .exec();
     
-    console.log('Fetched tests:', tests.length);
+    console.log(`✅ Found ${tests.length} tests (${fields || 'minimal'})`);
+    
+    // Отключаем все виды кэширования
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     res.json(tests);
   } catch (error: any) {
-    console.error('Error fetching tests:', error);
+    console.error('❌ Error fetching tests:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
 
-router.get('/:id', authenticate, cacheMiddleware(300), async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const test = await Test.findById(req.params.id)
       .populate('groupId', 'name classNumber letter')
@@ -98,6 +115,11 @@ router.get('/:id', authenticate, cacheMiddleware(300), async (req, res) => {
     if (!test) {
       return res.status(404).json({ message: 'Test topilmadi' });
     }
+    
+    // Отключаем кэширование
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     res.json(test);
   } catch (error: any) {
@@ -176,9 +198,6 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         // Не прерываем создание теста, если не удалось создать варианты
       }
     }
-    
-    // Инвалидируем кэш списка тестов
-    await invalidateCache('/api/tests');
     
     res.status(201).json(test);
   } catch (error) {
@@ -287,9 +306,6 @@ router.put('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ message: 'Test topilmadi' });
     }
     
-    // Инвалидируем кэш
-    await invalidateCache('/api/tests');
-    
     console.log('Test updated:', test._id);
     res.json(test);
   } catch (error: any) {
@@ -308,9 +324,6 @@ router.delete('/:id', authenticate, async (req, res) => {
     
     // Also delete related student variants
     await StudentVariant.deleteMany({ testId: req.params.id });
-    
-    // Инвалидируем кэш
-    await invalidateCache('/api/tests');
     
     console.log('Test deleted:', req.params.id);
     res.json({ message: 'Test o\'chirildi' });
@@ -394,11 +407,26 @@ router.post('/import/confirm', authenticate, async (req: AuthRequest, res) => {
   try {
     const { questions, testName, groupId, subjectId, classNumber } = req.body;
 
+    console.log('🔍 Import test request:', {
+      testName,
+      groupId,
+      subjectId,
+      classNumber,
+      questionsCount: questions?.length
+    });
+    console.log('🔍 User info:', {
+      userId: req.user?.id,
+      branchId: req.user?.branchId,
+      role: req.user?.role
+    });
+
     if (!questions || questions.length === 0) {
+      console.log('❌ No questions provided');
       return res.status(400).json({ message: 'Savollar topilmadi' });
     }
 
     if (!groupId) {
+      console.log('❌ No groupId provided');
       return res.status(400).json({ message: 'Guruh tanlanmagan' });
     }
 
@@ -414,13 +442,20 @@ router.post('/import/confirm', authenticate, async (req: AuthRequest, res) => {
 
     await test.save();
 
-    console.log('Imported test saved:', test._id);
+    console.log('✅ Test saved successfully:', {
+      testId: test._id,
+      name: test.name,
+      branchId: test.branchId,
+      createdBy: test.createdBy,
+      questionsCount: test.questions.length
+    });
+
     res.status(201).json({ 
       message: 'Test muvaffaqiyatli saqlandi',
       test
     });
   } catch (error: any) {
-    console.error('Error saving imported test:', error);
+    console.error('❌ Error saving imported test:', error);
     res.status(500).json({ message: 'Saqlashda xatolik', error: error.message });
   }
 });

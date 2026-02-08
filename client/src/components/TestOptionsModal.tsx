@@ -57,27 +57,39 @@ export default function TestOptionsModal({
       navigate(`/teacher/block-tests/${test._id}/view`);
     } else {
       // Обычный тест
-      navigate(`/teacher/tests/${test._id}/view`);
+      navigate(`/teacher/tests/${test._id}`);
     }
   };
 
   const handleViewVariants = () => {
-    onClose();
-    // Перенаправляем на страницу просмотра вариантов
-    if (test?.subjectTests) {
-      navigate(`/teacher/block-tests/${test._id}/variants`);
-    } else {
-      navigate(`/teacher/tests/${test._id}/variants`);
-    }
+    // Открываем страницу печати вопросов
+    setPendingPrintType('questions');
+    setShowStudentSelection(true);
   };
 
-  const handleRegenerateVariants = () => {
-    onClose();
-    // Перенаправляем на страницу создания новых вариантов
-    if (test?.subjectTests) {
-      navigate(`/teacher/block-tests/${test._id}/variants`);
-    } else {
-      navigate(`/teacher/tests/${test._id}/variants`);
+  const handleRegenerateVariants = async () => {
+    try {
+      // Закрываем модалку
+      onClose();
+      
+      // Перемешиваем варианты
+      if (test?.subjectTests) {
+        await api.post(`/block-tests/${test._id}/generate-variants`);
+      } else {
+        await api.post(`/tests/${test._id}/generate-variants`);
+      }
+      
+      // Обновляем данные
+      if (onRefresh) {
+        await onRefresh();
+      }
+      
+      // Переоткрываем модалку через небольшую задержку
+      setTimeout(() => {
+        // Модалка откроется автоматически через onRefresh
+      }, 100);
+    } catch (error) {
+      console.error('Error regenerating variants:', error);
     }
   };
 

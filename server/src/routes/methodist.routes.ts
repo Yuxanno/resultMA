@@ -28,7 +28,8 @@ router.get('/tests', authenticate, requirePermission('view_tests'), async (req: 
     const tests = await Test.find(filter)
       .populate('subjectId')
       .populate('createdBy', 'username')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json(tests);
   } catch (error: any) {
@@ -42,7 +43,8 @@ router.get('/tests/:id', authenticate, requirePermission('view_tests'), async (r
   try {
     const test = await Test.findById(req.params.id)
       .populate('subjectId')
-      .populate('createdBy', 'username');
+      .populate('createdBy', 'username')
+      .lean();
     
     if (!test) {
       return res.status(404).json({ message: 'Test topilmadi' });
@@ -146,7 +148,8 @@ router.get('/block-tests', authenticate, requirePermission('view_block_tests'), 
     
     const blockTests = await BlockTest.find(filter)
       .populate('createdBy', 'username')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json(blockTests);
   } catch (error: any) {
@@ -159,7 +162,8 @@ router.get('/block-tests', authenticate, requirePermission('view_block_tests'), 
 router.get('/block-tests/:id', authenticate, requirePermission('view_block_tests'), async (req: AuthRequest, res) => {
   try {
     const blockTest = await BlockTest.findById(req.params.id)
-      .populate('createdBy', 'username');
+      .populate('createdBy', 'username')
+      .lean();
     
     if (!blockTest) {
       return res.status(404).json({ message: 'Blok test topilmadi' });
@@ -252,7 +256,7 @@ router.delete('/block-tests/:id', authenticate, requirePermission('delete_block_
 // Получить все предметы
 router.get('/subjects', authenticate, requirePermission('view_subjects'), async (req: AuthRequest, res) => {
   try {
-    const subjects = await Subject.find({ isActive: true }).sort({ name: 1 });
+    const subjects = await Subject.find({ isActive: true }).sort({ name: 1 }).lean();
     res.json(subjects);
   } catch (error: any) {
     console.error('Error fetching subjects:', error);

@@ -37,7 +37,6 @@ class QueueService extends EventEmitter {
    */
   registerHandler<T = any>(type: string, handler: JobHandler<T>) {
     this.handlers.set(type, handler);
-    console.log(`✅ Registered queue handler: ${type}`);
   }
 
   /**
@@ -62,8 +61,6 @@ class QueueService extends EventEmitter {
 
     this.jobs.set(jobId, job);
     this.emit('job:added', job);
-    
-    console.log(`📋 Job added to queue: ${jobId} (${type})`);
     
     // Запускаем обработку, если она не запущена
     if (!this.processing) {

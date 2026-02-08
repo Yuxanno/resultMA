@@ -1,6 +1,6 @@
 import { Settings, User, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from './Button';
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 
 interface StudentCardProps {
   student: {
@@ -42,26 +42,26 @@ export function StudentCard({
     .slice(0, 2)
     .toUpperCase();
 
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     if (expandable && config?.subjects && config.subjects.length > 0) {
       setIsExpanded(!isExpanded);
     }
-  };
+  }, [expandable, config?.subjects, isExpanded]);
 
-  const handleStudentClick = (e: React.MouseEvent) => {
+  const handleStudentClick = useCallback((e: React.MouseEvent) => {
     // Если есть onConfigure, открываем модальное окно
     if (onConfigure) {
       e.stopPropagation();
       onConfigure(student);
     }
-  };
+  }, [onConfigure, student]);
 
-  const handleConfigureClick = (e: React.MouseEvent) => {
+  const handleConfigureClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onConfigure) {
       onConfigure(student);
     }
-  };
+  }, [onConfigure, student]);
 
   if (compact) {
     return (
@@ -271,6 +271,18 @@ export function StudentCard({
   );
 }
 
+// Memoize StudentCard to prevent unnecessary re-renders
+const MemoizedStudentCard = memo(StudentCard, (prevProps, nextProps) => {
+  return (
+    prevProps.student._id === nextProps.student._id &&
+    prevProps.config === nextProps.config &&
+    prevProps.showConfigButton === nextProps.showConfigButton &&
+    prevProps.compact === nextProps.compact &&
+    prevProps.index === nextProps.index &&
+    prevProps.expandable === nextProps.expandable
+  );
+});
+
 /**
  * Список студентов с упрощенным дизайном
  */
@@ -307,7 +319,7 @@ export function StudentList({
   return (
     <div className={compact ? 'space-y-1' : 'divide-y divide-gray-100'}>
       {students.map((student, index) => (
-        <StudentCard
+        <MemoizedStudentCard
           key={student._id}
           student={student}
           config={getConfig(student._id)}

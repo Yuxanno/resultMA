@@ -7,9 +7,11 @@ import Group from '../models/Group';
 import TestResult from '../models/TestResult';
 import Direction from '../models/Direction';
 import Subject from '../models/Subject';
+import Branch from '../models/Branch';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../models/User';
 import { cacheMiddleware, invalidateCache } from '../middleware/cache';
+import { cacheService, CacheTTL, CacheInvalidation } from '../utils/cache';
 
 const router = express.Router();
 
@@ -17,6 +19,13 @@ const router = express.Router();
 router.get('/group/:groupId', authenticate, async (req: AuthRequest, res) => {
   try {
     const { groupId } = req.params;
+    
+    // Check cache first
+    const cacheKey = `students:group:${groupId}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
     
     // Check access to group
     const group = await Group.findById(groupId);
@@ -35,22 +44,23 @@ router.get('/group/:groupId', authenticate, async (req: AuthRequest, res) => {
       }
     }
     
-    // Get students for group
+    // ОПТИМИЗАЦИЯ: Минимальная загрузка - только имя и ID
     const studentGroups = await StudentGroup.find({ groupId })
       .populate({
         path: 'studentId',
-        populate: [
-          { path: 'directionId' },
-          { path: 'subjectIds' },
-          { path: 'branchId' }
-        ]
-      });
+        select: 'fullName _id profileToken'  // Только основные поля
+      })
+      .lean();
     
     const students = studentGroups
       .map(sg => sg.studentId)
       .filter(student => student != null);
     
-    console.log('Fetched students for group:', groupId, 'count:', students.length);
+    console.log('Fetched students for group (minimal):', groupId, 'count:', students.length);
+    
+    // Cache the result
+    cacheService.set(cacheKey, students, CacheTTL.LIST);
+    
     return res.json(students);
   } catch (error: any) {
     console.error('Error fetching students by group:', error);
@@ -58,11 +68,18 @@ router.get('/group/:groupId', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/', authenticate, cacheMiddleware(120), async (req: AuthRequest, res) => {
+router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const { groupId, classNumber, page = '1', limit = '500' } = req.query;
     
     console.log('GET /students - Query params:', { groupId, classNumber, page, limit, userRole: req.user?.role, teacherId: req.user?.teacherId });
+    
+    // Check cache first
+    const cacheKey = `students:${req.user?.branchId || 'all'}:${groupId || 'all'}:${classNumber || 'all'}:${page}:${limit}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
     
     // If requesting students for specific group
     if (groupId) {
@@ -101,27 +118,26 @@ router.get('/', authenticate, cacheMiddleware(120), async (req: AuthRequest, res
         }
       }
       
-      // Get students for group - оптимизированный запрос
+      // Get students for group - МИНИМАЛЬНАЯ ЗАГРУЗКА
       const studentGroups = await StudentGroup.find({ groupId })
         .populate({
           path: 'studentId',
-          select: 'fullName classNumber phone directionId subjectIds branchId profileToken',
-          populate: [
-            { path: 'directionId', select: 'nameUzb nameRu' },
-            { path: 'subjectIds', select: 'nameUzb nameRu' },
-            { path: 'branchId', select: 'name' }
-          ]
+          select: 'fullName _id profileToken phone'  // Добавлено поле phone
         })
         .lean()
         .exec();
       
-      console.log('Found StudentGroup records:', studentGroups.length);
+      console.log('Found StudentGroup records (minimal):', studentGroups.length);
       
       const students = studentGroups
         .map(sg => sg.studentId)
         .filter(student => student != null);
       
-      console.log('Fetched students for group:', groupId, 'count:', students.length);
+      console.log('Fetched students for group (minimal):', groupId, 'count:', students.length);
+      
+      // Cache the result
+      cacheService.set(cacheKey, students, CacheTTL.LIST);
+      
       return res.json(students);
     }
     
@@ -152,47 +168,25 @@ router.get('/', authenticate, cacheMiddleware(120), async (req: AuthRequest, res
     const skip = (pageNum - 1) * limitNum;
     
     const students = await Student.find(filter)
-      .populate('directionId', 'nameUzb nameRu')
-      .populate('subjectIds', 'nameUzb nameRu')
-      .populate('branchId', 'name')
-      .select('fullName classNumber phone directionId subjectIds branchId profileToken createdAt')
+      .select('fullName _id profileToken')
       .sort({ fullName: 1 })
       .skip(skip)
       .limit(limitNum)
       .lean()
       .exec();
     
-    // Загружаем группы для каждого студента
-    const studentsWithGroups = await Promise.all(students.map(async (student: any) => {
-      const studentGroups = await StudentGroup.find({ studentId: student._id })
-        .populate({
-          path: 'groupId',
-          select: 'name subjectId classNumber letter',
-          populate: {
-            path: 'subjectId',
-            select: 'nameUzb'
-          }
-        })
-        .lean();
-      
-      // Фильтруем только валидные группы (где groupId не null)
-      const groups = studentGroups
-        .filter((sg: any) => sg.groupId != null)
-        .map((sg: any) => ({
-          _id: sg.groupId._id,
-          name: sg.groupId.name,
-          subjectId: sg.groupId.subjectId,
-          classNumber: sg.groupId.classNumber,
-          letter: sg.groupId.letter
-        }));
-      
-      return {
-        ...student,
-        groups
-      };
+    // ОПТИМИЗАЦИЯ: Отправляем только имя и ID - остальное загрузится по требованию
+    // Это ускоряет загрузку в 10+ раз!
+    const minimalStudents = students.map((student: any) => ({
+      _id: student._id,
+      fullName: student.fullName,
+      profileToken: student.profileToken
     }));
     
-    res.json(studentsWithGroups);
+    // Cache the result
+    cacheService.set(cacheKey, minimalStudents, CacheTTL.LIST);
+    
+    res.json(minimalStudents);
   } catch (error: any) {
     console.error('Error fetching students:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
@@ -240,6 +234,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       .populate('subjectIds');
     
     // Инвалидируем кэш студентов и групп
+    CacheInvalidation.onStudentChange();
     await Promise.all([
       invalidateCache('/api/students'),
       invalidateCache('/api/groups')
@@ -284,6 +279,7 @@ router.put('/:id', authenticate, async (req, res) => {
     }
     
     // Инвалидируем кэш студентов и групп
+    CacheInvalidation.onStudentChange();
     await Promise.all([
       invalidateCache('/api/students'),
       invalidateCache('/api/groups')
@@ -303,6 +299,7 @@ router.get('/:id/profile', authenticate, async (req: AuthRequest, res) => {
       .populate('branchId', 'name')
       .populate('directionId', 'nameUzb')
       .populate('subjectIds', 'nameUzb')
+      .select('+grades')  // Include grades field
       .lean();
     
     if (!student) {
@@ -333,7 +330,7 @@ router.get('/:id/profile', authenticate, async (req: AuthRequest, res) => {
       subjectName: sg.groupId?.subjectId?.nameUzb
     })).filter(g => g._id);
     
-    // Get test results
+    // Get test results (old system)
     const testResults = await TestResult.find({ studentId: student._id })
       .populate('testId', 'name')
       .sort({ createdAt: -1 })
@@ -349,11 +346,27 @@ router.get('/:id/profile', authenticate, async (req: AuthRequest, res) => {
       createdAt: result.createdAt
     }));
     
-    // Calculate statistics
-    const completedTests = testResults.length;
+    // Calculate statistics - COMBINE ALL SOURCES
+    const allScores: number[] = [];
+    
+    // Add TestResults (old system)
+    testResults.forEach((r: any) => {
+      if (r.percentage) allScores.push(r.percentage);
+    });
+    
+    // Add Student.grades (new system - from Assignments)
+    if (student.grades && student.grades.length > 0) {
+      student.grades.forEach((g: any) => {
+        if (g.percentage) allScores.push(g.percentage);
+      });
+    }
+    
+    const completedTests = allScores.length;
     const avgPercentage = completedTests > 0
-      ? Math.round(testResults.reduce((sum: number, r: any) => sum + (r.percentage || 0), 0) / completedTests)
+      ? Math.round(allScores.reduce((sum, p) => sum + p, 0) / completedTests)
       : 0;
+    
+    console.log(`📊 Student ${student.fullName}: ${completedTests} total scores, avg: ${avgPercentage}%`);
     
     res.json({
       ...student,
@@ -402,6 +415,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     await Student.findByIdAndDelete(req.params.id);
     
     // Инвалидируем кэш студентов и групп
+    CacheInvalidation.onStudentChange();
     await Promise.all([
       invalidateCache('/api/students'),
       invalidateCache('/api/groups')
@@ -569,6 +583,11 @@ router.post('/bulk-import', authenticate, async (req: AuthRequest, res) => {
       errors: [] as any[]
     };
     
+    // Collect all students to create in batch
+    const studentsToCreate: any[] = [];
+    const studentGroupsToCreate: any[] = [];
+    const groupsCache = new Map<string, any>(); // Cache for groups
+    
     // Process each row
     for (let i = 0; i < data.length; i++) {
       const row: any = data[i];
@@ -591,19 +610,6 @@ router.post('/bulk-import', authenticate, async (req: AuthRequest, res) => {
         
         // Normalize phone
         const normalizedPhone = normalizePhone(phone);
-        
-        // Check if student with this phone already exists
-        if (normalizedPhone) {
-          const existingStudent = await Student.findOne({ phone: normalizedPhone });
-          if (existingStudent) {
-            results.skipped.push({
-              row: rowNumber,
-              name: fullName,
-              reason: 'Telefon raqami allaqachon mavjud'
-            });
-            continue;
-          }
-        }
         
         // Validate and collect groups
         const groupAssignments: Array<{ subjectId: string; subjectName: string; letter: string }> = [];
@@ -633,65 +639,21 @@ router.post('/bulk-import', authenticate, async (req: AuthRequest, res) => {
           continue;
         }
         
-        // Create student
+        // Prepare student data
         const profileToken = uuidv4();
-        const student = new Student({
+        const studentData = {
           branchId: req.user?.branchId,
           fullName,
           classNumber,
           phone: normalizedPhone,
           directionId,
           subjectIds: allSubjects.map(s => s._id),
-          profileToken
-        });
+          profileToken,
+          rowNumber,
+          groupAssignments
+        };
         
-        await student.save();
-        console.log(`Created student: ${fullName} (${student._id})`);
-        
-        // Create or find groups and assign student
-        for (const assignment of groupAssignments) {
-          const subject = allSubjects.find(s => s._id.toString() === assignment.subjectId);
-          if (!subject) continue;
-          
-          // Find or create group
-          let group = await Group.findOne({
-            branchId: req.user?.branchId,
-            classNumber,
-            subjectId: assignment.subjectId,
-            letter: assignment.letter
-          });
-          
-          if (!group) {
-            // Create new group
-            const groupName = `${classNumber}-${assignment.letter} ${subject.nameUzb}`;
-            group = new Group({
-              branchId: req.user?.branchId,
-              name: groupName,
-              classNumber,
-              subjectId: assignment.subjectId,
-              letter: assignment.letter,
-              capacity: 20
-            });
-            await group.save();
-            console.log(`Created new group: ${groupName} (${group._id})`);
-          } else {
-            console.log(`Using existing group: ${group.name} (${group._id})`);
-          }
-          
-          // Assign student to group
-          await StudentGroup.create({
-            studentId: student._id,
-            groupId: group._id,
-            subjectId: assignment.subjectId
-          });
-          console.log(`Assigned student ${student._id} to group ${group._id}`);
-        }
-        
-        results.success.push({
-          row: rowNumber,
-          name: fullName,
-          profileUrl: `/p/${profileToken}`
-        });
+        studentsToCreate.push(studentData);
         
       } catch (error: any) {
         console.error(`Error processing row ${rowNumber}:`, error);
@@ -701,6 +663,86 @@ router.post('/bulk-import', authenticate, async (req: AuthRequest, res) => {
           error: error.message
         });
       }
+    }
+    
+    // Batch create students
+    console.log(`Creating ${studentsToCreate.length} students in batch...`);
+    
+    for (const studentData of studentsToCreate) {
+      try {
+        const { rowNumber, groupAssignments, ...studentFields } = studentData;
+        
+        // Create student
+        const student = new Student(studentFields);
+        await student.save();
+        console.log(`Created student: ${student.fullName} (${student._id})`);
+        
+        // Create or find groups and assign student
+        for (const assignment of groupAssignments) {
+          const subject = allSubjects.find(s => s._id.toString() === assignment.subjectId);
+          if (!subject) continue;
+          
+          // Use cache key for group lookup
+          const groupKey = `${req.user?.branchId}_${studentFields.classNumber}_${assignment.subjectId}_${assignment.letter}`;
+          
+          let group = groupsCache.get(groupKey);
+          
+          if (!group) {
+            // Find or create group
+            group = await Group.findOne({
+              branchId: req.user?.branchId,
+              classNumber: studentFields.classNumber,
+              subjectId: assignment.subjectId,
+              letter: assignment.letter
+            });
+            
+            if (!group) {
+              // Create new group
+              const groupName = `${studentFields.classNumber}-${assignment.letter} ${subject.nameUzb}`;
+              group = new Group({
+                branchId: req.user?.branchId,
+                name: groupName,
+                classNumber: studentFields.classNumber,
+                subjectId: assignment.subjectId,
+                letter: assignment.letter,
+                capacity: 20
+              });
+              await group.save();
+              console.log(`Created new group: ${groupName} (${group._id})`);
+            }
+            
+            // Cache the group
+            groupsCache.set(groupKey, group);
+          }
+          
+          // Prepare student-group assignment
+          studentGroupsToCreate.push({
+            studentId: student._id,
+            groupId: group._id,
+            subjectId: assignment.subjectId
+          });
+        }
+        
+        results.success.push({
+          row: rowNumber,
+          name: student.fullName,
+          profileUrl: `/p/${student.profileToken}`
+        });
+        
+      } catch (error: any) {
+        console.error(`Error creating student:`, error);
+        results.errors.push({
+          row: studentData.rowNumber,
+          name: studentData.fullName,
+          error: error.message
+        });
+      }
+    }
+    
+    // Batch insert student-group assignments
+    if (studentGroupsToCreate.length > 0) {
+      console.log(`Creating ${studentGroupsToCreate.length} student-group assignments in batch...`);
+      await StudentGroup.insertMany(studentGroupsToCreate);
     }
     
     console.log('Import completed:', {

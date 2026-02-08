@@ -20,8 +20,11 @@ export const cacheMiddleware = (ttl: number = 300) => {
     }
 
     try {
-      // Создаем уникальный ключ на основе URL и query параметров
-      const cacheKey = `cache:${req.originalUrl || req.url}`;
+      // Создаем уникальный ключ на основе URL (БЕЗ query параметров для timestamp)
+      // Убираем _t параметр из ключа кэша
+      const url = req.originalUrl || req.url;
+      const urlWithoutTimestamp = url.split('?')[0]; // Берем только путь без query
+      const cacheKey = `cache:${urlWithoutTimestamp}`;
       
       // Проверяем наличие данных в кэше
       const cachedData = await redis.get(cacheKey);

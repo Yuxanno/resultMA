@@ -63,7 +63,6 @@ export default function UsersPage() {
   const fetchRoles = async () => {
     try {
       const { data } = await api.get('/roles');
-      console.log('Fetched roles:', data);
       // Tizim rollarini birinchi qo'yish
       const sortedRoles = data.sort((a: any, b: any) => {
         if (a.isSystem && !b.isSystem) return -1;
@@ -74,7 +73,6 @@ export default function UsersPage() {
       // Agar formData'da rol bo'lmasa, birinchi rolni tanlash (SUPER_ADMIN dan boshqa)
       if (sortedRoles.length > 0 && !formData.role) {
         const defaultRole = sortedRoles.find((r: any) => r.name !== 'SUPER_ADMIN');
-        console.log('Setting default role:', defaultRole?.name);
         if (defaultRole) {
           setFormData(prev => ({ ...prev, role: defaultRole.name }));
         }
@@ -86,11 +84,6 @@ export default function UsersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Form data before submit:', formData);
-    console.log('Available roles:', roles);
-    console.log('Selected role:', formData.role);
-    console.log('Is role valid?', roles.some(r => r.name === formData.role));
     
     // Agar rol noto'g'ri bo'lsa, birinchi rolni tanlash
     if (!formData.role || !roles.some(r => r.name === formData.role)) {
@@ -179,9 +172,7 @@ export default function UsersPage() {
     if (!confirm('Foydalanuvchini o\'chirmoqchimisiz?')) return;
     
     try {
-      console.log('Удаление пользователя:', userId);
       const response = await api.delete(`/users/${userId}`);
-      console.log('Ответ сервера:', response.data);
       await fetchUsers();
       success('Foydalanuvchi o\'chirildi!');
     } catch (err: any) {
@@ -282,7 +273,6 @@ export default function UsersPage() {
         addButtonText="Foydalanuvchi qo'shish"
         onAddClick={() => {
           const defaultRole = roles.find(r => r.name !== 'SUPER_ADMIN');
-          console.log('Opening form with default role:', defaultRole?.name);
           setFormData({ 
             username: '', 
             password: '', 
@@ -329,7 +319,6 @@ export default function UsersPage() {
                 label="Rol"
                 value={formData.role}
                 onChange={(e) => {
-                  console.log('Role changed to:', e.target.value);
                   const newRole = e.target.value;
                   setFormData({ 
                     ...formData, 

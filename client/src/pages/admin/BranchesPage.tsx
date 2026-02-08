@@ -171,54 +171,54 @@ export default function BranchesPage() {
           {filteredBranches.map((branch, index) => (
             <Card 
               key={branch._id} 
-              className="hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer"
+              className="group hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden"
               onClick={() => navigate(`/admin/branches/${branch._id}/statistics`)}
             >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              <CardContent className="p-5 sm:p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                    <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEdit(branch);
                       }}
-                      className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Tahrirlash"
                     >
-                      <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
+                      <Edit2 className="w-4 h-4 text-blue-600" />
                     </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(branch._id);
                       }}
-                      className="p-1.5 sm:p-2 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                       title="O'chirish"
                     >
-                      <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
                 </div>
                 
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3 line-clamp-2">{branch.name}</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">{branch.name}</h3>
                 
-                <div className="space-y-2 sm:space-y-2.5 mb-3 sm:mb-4">
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                    <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <div className="space-y-2.5 mb-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400" />
                     <span className="line-clamp-1">{branch.location}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
                     <span>{new Date(branch.createdAt).toLocaleDateString('uz-UZ')}</span>
                   </div>
                 </div>
 
-                <div className="pt-3 sm:pt-4 border-t border-gray-100">
+                <div className="pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm text-gray-600">Status:</span>
+                    <span className="text-sm text-gray-600 font-medium">Status:</span>
                     <Badge variant="success" size="sm">
                       Faol
                     </Badge>
@@ -229,15 +229,15 @@ export default function BranchesPage() {
           ))}
         </div>
       ) : (
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card>
           <CardContent className="py-16 text-center">
-            <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <Building2 className="w-10 h-10 text-gray-400" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">
               {searchQuery ? 'Filiallar topilmadi' : 'Filiallar yo\'q'}
             </h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            <p className="text-gray-600 mb-6 max-w-md mx-auto leading-relaxed">
               {searchQuery 
                 ? 'Qidiruv bo\'yicha hech narsa topilmadi. Boshqa so\'z bilan qidiring.'
                 : 'Birinchi filialni qo\'shish uchun yuqoridagi tugmani bosing'

@@ -29,20 +29,33 @@ export default function GroupConfigModal({
   const [allSubjects, setAllSubjects] = useState<any[]>([]);
   const [pointsConfig, setPointsConfig] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true); // ⭐ НОВОЕ
   const [previousTotalQuestions, setPreviousTotalQuestions] = useState(90);
 
   const getMaxQuestionsForSubject = (subjectId: string): number => {
-    if (!blockTest?.subjectTests) return 999;
+    if (!blockTest?.subjectTests) {
+      console.log('⚠️ No subjectTests in blockTest');
+      return 999;
+    }
+    
+    console.log('🔍 Getting max questions for subject:', subjectId);
+    console.log('📋 BlockTest subjectTests:', blockTest.subjectTests.length);
     
     // Находим ВСЕ тесты по этому предмету и суммируем вопросы
     const subjectTests = blockTest.subjectTests.filter(
       (st: any) => (st.subjectId?._id || st.subjectId) === subjectId
     );
     
+    console.log('📝 Found subject tests:', subjectTests.length);
+    
     // Суммируем количество вопросов из всех тестов
     const totalQuestions = subjectTests.reduce((sum: number, st: any) => {
-      return sum + (st.questions?.length || 0);
+      const questionsCount = st.questions?.length || 0;
+      console.log('  - Test has', questionsCount, 'questions');
+      return sum + questionsCount;
     }, 0);
+    
+    console.log('✅ Total questions for subject:', totalQuestions);
     
     return totalQuestions;
   };
@@ -50,6 +63,8 @@ export default function GroupConfigModal({
   useEffect(() => {
     if (isOpen && allSubjects.length > 0) {
       console.log('🔍 GroupConfigModal: all subjects from system:', allSubjects.length);
+      
+      setLoading(true); // ⭐ Начинаем загрузку
       
       // Берём ВСЕ предметы из системы
       const subjectsWithAvg = allSubjects.map((subject: any) => {
@@ -110,11 +125,14 @@ export default function GroupConfigModal({
       } else {
         setPointsConfig([{ from: 1, to: total, points: 3.1 }]);
       }
+      
+      setLoading(false); // ⭐ Загрузка завершена
     }
-  }, [isOpen, studentConfigs, blockTest]);
+  }, [isOpen, studentConfigs, blockTest, allSubjects]);
 
   useEffect(() => {
     if (isOpen) {
+      setLoading(true); // ⭐ Начинаем загрузку
       loadAllSubjects();
     }
   }, [isOpen]);
@@ -125,6 +143,7 @@ export default function GroupConfigModal({
       setAllSubjects(data);
     } catch (error) {
       console.error('Error loading subjects:', error);
+      setLoading(false); // ⭐ Останавливаем загрузку при ошибке
     }
   };
 
@@ -316,8 +335,22 @@ export default function GroupConfigModal({
             Faqat o'quvchilarda mavjud fanlar uchun savollar soni yangilanadi
           </p>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {subjects.map((subject, index) => {
+          {loading ? (
+            // ⭐ Skeleton loading
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="flex-1">
+                    <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24"></div>
+                  </div>
+                  <div className="w-32 h-10 bg-gray-200 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {subjects.map((subject, index) => {
               const subjectId = subject.subjectId?._id || subject.subjectId;
               const subjectName = subject.subjectId?.nameUzb || 'Fan';
               
@@ -390,7 +423,8 @@ export default function GroupConfigModal({
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="mb-6">
@@ -402,14 +436,32 @@ export default function GroupConfigModal({
               variant="outline"
               size="sm"
               onClick={handleAddPointsRange}
+              disabled={loading}
             >
               <Plus className="w-4 h-4 mr-1" />
               Diapazon qo'shish
             </Button>
           </div>
 
-          <div className="space-y-3">
-            {pointsConfig.map((range, index) => (
+          {loading ? (
+            // ⭐ Skeleton loading
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="w-20 h-10 bg-gray-200 rounded"></div>
+                    <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                    <div className="w-20 h-10 bg-gray-200 rounded"></div>
+                    <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                    <div className="w-24 h-10 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-200 rounded w-12"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pointsConfig.map((range, index) => (
               <div
                 key={index}
                 className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg"
@@ -459,8 +511,9 @@ export default function GroupConfigModal({
                   </Button>
                 )}
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <p className="text-xs text-gray-500 mt-2">
             Ballar sozlamasi har bir o'quvchining jami savollar soniga moslashtiriladi
@@ -471,14 +524,14 @@ export default function GroupConfigModal({
           <Button
             variant="outline"
             onClick={onClose}
-            disabled={saving}
+            disabled={saving || loading}
           >
             Bekor qilish
           </Button>
           <Button
             onClick={handleSave}
             className="flex-1"
-            disabled={saving}
+            disabled={saving || loading}
             loading={saving}
           >
             <Save className="w-4 h-4 mr-2" />

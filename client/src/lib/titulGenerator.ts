@@ -14,6 +14,7 @@ export interface TitulSheetConfig {
   groupId: string;
   groupName: string;
   date: string;
+  questionCount?: number; // Number of questions in the test
 }
 
 export async function generateTitulSheet(config: TitulSheetConfig): Promise<string> {
@@ -50,7 +51,7 @@ export async function generateTitulSheet(config: TitulSheetConfig): Promise<stri
   drawIDNumberOMR(ctx, width, height, config.studentId);
 
   // 7. JAVOBLAR BO'LIMI (30 ta savol, har birida A/B/C/D)
-  drawAnswersOMR(ctx, width, height);
+  drawAnswersOMR(ctx, width, height, config.questionCount || 30);
 
   // 8. CHIZIQLAR VA DEKORATSIYA
   drawBorders(ctx, width, height);
@@ -62,8 +63,6 @@ function drawAnchorMarkers(ctx: CanvasRenderingContext2D, width: number, height:
   const size = 80; // Kvadrat o'lchami (kattaroq)
   const margin = 150; // Chetdan uzoqroq
   const smallSize = 60; // Kichik kvadratlar
-
-  console.log('Drawing anchors:', { width, height, margin });
 
   // 4 ta burchakda asosiy markerlar
   const mainPositions = [
@@ -97,20 +96,14 @@ function drawAnchorMarkers(ctx: CanvasRenderingContext2D, width: number, height:
   ctx.fillStyle = '#000000';
   
   // Asosiy markerlar (kattaroq)
-  console.log('Drawing main markers:', mainPositions.length);
-  mainPositions.forEach((pos, i) => {
+  mainPositions.forEach((pos) => {
     ctx.fillRect(pos.x - size/2, pos.y - size/2, size, size);
-    console.log(`Main ${i}:`, pos);
   });
   
   // Qo'shimcha markerlar (kichikroq)
-  console.log('Drawing extra markers:', extraPositions.length);
-  extraPositions.forEach((pos, i) => {
+  extraPositions.forEach((pos) => {
     ctx.fillRect(pos.x - smallSize/2, pos.y - smallSize/2, smallSize, smallSize);
-    console.log(`Extra ${i}:`, pos);
   });
-  
-  console.log('Total markers drawn:', mainPositions.length + extraPositions.length);
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, width: number, config: TitulSheetConfig) {
@@ -313,7 +306,8 @@ function drawBorders(ctx: CanvasRenderingContext2D, width: number, height: numbe
 function drawAnswersOMR(
   ctx: CanvasRenderingContext2D,
   width: number,
-  height: number
+  height: number,
+  questionCount: number = 30
 ) {
   const startX = width * 0.40;
   const startY = height * 0.35;
@@ -326,12 +320,12 @@ function drawAnswersOMR(
   ctx.textAlign = 'left';
   ctx.fillText('JAVOBLAR:', startX, startY - 30);
 
-  // 30 ta savol (3 ustun x 10 qator)
+  // Use actual question count instead of fixed 30
   const questionsPerColumn = 10;
-  const totalQuestions = 30;
-  const columns = 3;
+  const totalQuestions = questionCount;
+  const columns = Math.ceil(totalQuestions / questionsPerColumn);
 
-  const columnWidth = areaWidth / columns;
+  const columnWidth = areaWidth / Math.max(columns, 3); // Minimum 3 columns for layout
   const rowHeight = areaHeight / questionsPerColumn;
   const circleRadius = Math.min(columnWidth, rowHeight) * 0.08;
   const variantSpacing = columnWidth / 5;
@@ -343,7 +337,7 @@ function drawAnswersOMR(
     const questionX = startX + col * columnWidth;
     const questionY = startY + row * rowHeight;
 
-    // Savol raqami
+    // Savol raqami - ALWAYS use q + 1 for sequential numbering
     ctx.fillStyle = '#374151';
     ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'left';

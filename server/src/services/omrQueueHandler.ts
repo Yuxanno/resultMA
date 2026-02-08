@@ -35,8 +35,6 @@ async function processOMRImage(data: OMRJobData): Promise<OMRResult> {
     if (data.questionCount) {
       args.push('--questions', data.questionCount.toString());
     }
-
-    console.log(`🐍 Running Python OMR script: ${pythonScript}`);
     
     const pythonProcess = spawn('python', args);
     let outputData = '';
@@ -52,8 +50,6 @@ async function processOMRImage(data: OMRJobData): Promise<OMRResult> {
 
     pythonProcess.on('close', (code) => {
       if (code !== 0) {
-        console.error(`❌ Python script failed with code ${code}`);
-        console.error('Error:', errorData);
         reject(new Error(`OMR processing failed: ${errorData}`));
         return;
       }
@@ -83,7 +79,6 @@ async function processOMRImage(data: OMRJobData): Promise<OMRResult> {
           });
         }
       } catch (error: any) {
-        console.error('❌ Failed to parse OMR result:', error);
         reject(new Error(`Failed to parse OMR result: ${error.message}`));
       }
     });
@@ -101,12 +96,7 @@ async function processOMRImage(data: OMRJobData): Promise<OMRResult> {
  */
 export function registerOMRHandler() {
   queueService.registerHandler(JobTypes.OMR_PROCESS, async (data: OMRJobData) => {
-    console.log(`📸 Processing OMR image: ${data.imagePath}`);
-    
     const result = await processOMRImage(data);
-    
-    console.log(`✅ OMR processing completed: ${result.answers?.length || 0} answers detected`);
-    
     return result;
   });
 }

@@ -12,7 +12,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 3000,
+    port: 9998,
     allowedHosts: [
       '.trycloudflare.com',
       '.loca.lt',

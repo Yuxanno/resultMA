@@ -54,13 +54,9 @@ export default function BranchStatisticsPage() {
         return;
       }
 
-      console.log('Fetching statistics for branch:', branchId);
-
       // Используем тот же endpoint, что и в админ панели
       const statsResponse = await api.get(`/branches/${branchId}/statistics`);
       const branchStats = statsResponse.data;
-
-      console.log('Branch statistics:', branchStats);
 
       setStats({
         totalGroups: branchStats.groupsCount || 0,

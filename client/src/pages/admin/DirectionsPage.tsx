@@ -25,21 +25,9 @@ export default function DirectionsPage() {
   const { success, error } = useToast();
 
   useEffect(() => {
-    console.log('=== DIRECTIONS PAGE MOUNTED ===');
     fetchDirections();
     fetchSubjects();
   }, []);
-
-  useEffect(() => {
-    console.log('=== SUBJECTS UPDATED ===');
-    console.log('Subjects count:', subjects.length);
-    console.log('Subjects:', subjects);
-  }, [subjects]);
-
-  useEffect(() => {
-    console.log('=== SELECTED SUBJECTS UPDATED ===');
-    console.log('Selected subjects:', selectedSubjects);
-  }, [selectedSubjects]);
 
   const fetchDirections = async () => {
     try {
@@ -91,17 +79,10 @@ export default function DirectionsPage() {
         subjects: subjectsArray
       };
 
-      console.log('=== SUBMITTING DIRECTION ===');
-      console.log('Selected subjects:', selectedSubjects);
-      console.log('Subjects array:', subjectsArray);
-      console.log('Submit data:', submitData);
-
       if (editingDirection) {
-        console.log('Updating direction:', editingDirection._id);
         await api.put(`/directions/${editingDirection._id}`, submitData);
         success('Yo\'nalish muvaffaqiyatli yangilandi!');
       } else {
-        console.log('Creating new direction');
         await api.post('/directions', submitData);
         success('Yo\'nalish muvaffaqiyatli qo\'shildi!');
       }
@@ -122,9 +103,6 @@ export default function DirectionsPage() {
   };
 
   const handleEdit = (direction: any) => {
-    console.log('=== EDITING DIRECTION ===');
-    console.log('Direction:', direction);
-    
     setEditingDirection(direction);
     setFormData({ nameUzb: direction.nameUzb, subjects: direction.subjects || [] });
     
@@ -133,13 +111,10 @@ export default function DirectionsPage() {
     
     if (direction.subjects && Array.isArray(direction.subjects)) {
       direction.subjects.forEach((subj: any) => {
-        console.log('Processing subject:', subj);
-        
         if (subj.subjectIds && Array.isArray(subj.subjectIds)) {
           subj.subjectIds.forEach((subject: any) => {
             // Если subject это объект (populate), берем _id, иначе используем как есть
             const subjectId = typeof subject === 'object' && subject._id ? subject._id : subject;
-            console.log('Subject ID:', subjectId);
             
             selected[subjectId] = {
               type: subj.type,
@@ -152,7 +127,6 @@ export default function DirectionsPage() {
       });
     }
     
-    console.log('Selected subjects:', selected);
     setSelectedSubjects(selected);
     setShowForm(true);
   };

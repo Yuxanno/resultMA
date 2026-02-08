@@ -18,6 +18,8 @@ import StudentQRCode from '@/components/StudentQRCode';
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
+  const [displayedStudents, setDisplayedStudents] = useState<any[]>([]); // Студенты для отображения
+  const [loadingMore, setLoadingMore] = useState(false); // Загрузка следующей порции
   const [directions, setDirections] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
@@ -46,12 +48,40 @@ export default function StudentsPage() {
   });
   const { success, error } = useToast();
 
+  const BATCH_SIZE = 10; // Показывать по 10 студентов за раз
+
   useEffect(() => {
     fetchStudents();
     fetchDirections();
     fetchSubjects();
     fetchGroups();
   }, []);
+
+  // Постепенно показываем студентов
+  useEffect(() => {
+    if (students.length > 0) {
+      // Если студентов стало больше или это первая загрузка
+      if (displayedStudents.length === 0 || students.length !== displayedStudents.length) {
+        // Показываем первую порцию сразу
+        setDisplayedStudents(students.slice(0, BATCH_SIZE));
+        
+        // Затем постепенно добавляем остальных
+        let currentIndex = BATCH_SIZE;
+        const interval = setInterval(() => {
+          if (currentIndex >= students.length) {
+            clearInterval(interval);
+            return;
+          }
+          
+          const nextBatch = students.slice(currentIndex, currentIndex + BATCH_SIZE);
+          setDisplayedStudents(prev => [...prev, ...nextBatch]);
+          currentIndex += BATCH_SIZE;
+        }, 50); // Добавляем новую порцию каждые 50ms
+        
+        return () => clearInterval(interval);
+      }
+    }
+  }, [students]);
 
   const fetchStudents = async () => {
     try {
@@ -448,18 +478,21 @@ export default function StudentsPage() {
   }
 
   // Filter students by search query
-  const filteredStudents = students.filter(student =>
+  const filteredStudents = displayedStudents.filter(student =>
     student.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.phone?.includes(searchQuery) ||
     student.directionId?.nameUzb?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  // Показываем индикатор загрузки если еще не все студенты отображены
+  const hasMoreToLoad = displayedStudents.length < students.length;
 
   return (
     <div className="space-y-6 pb-20">
       <PageNavbar
         title="O'quvchilar"
         description="O'quvchilarni boshqarish va profil havolalari"
-        badge={`${filteredStudents.length} ta`}
+        badge={`${students.length} ta${hasMoreToLoad ? ` (${displayedStudents.length} ko'rsatilmoqda)` : ''}`}
         showSearch={students.length > 0}
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
@@ -950,93 +983,85 @@ export default function StudentsPage() {
           {filteredStudents.map((student) => (
             <Card 
               key={student._id} 
-              className="group hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden relative"
+              className="group hover:shadow-lg transition-all duration-200 border border-gray-200"
             >
-              <CardContent className="p-6 relative">
+              <CardContent className="p-4">
                 <div 
                   className="cursor-pointer"
                   onClick={() => setSelectedStudentId(student._id)}
                 >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                        <GraduationCap className="w-8 h-8 text-white" />
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="w-6 h-6 text-white" />
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-1">
                         {student.fullName}
                       </h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="info">{student.classNumber}-sinf</Badge>
-                        {student.directionId && (
-                          <Badge variant="purple">{student.directionId.nameUzb}</Badge>
-                        )}
-                      </div>
                     </div>
                   </div>
-
-                  {student.phone && (
-                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 mb-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">📱</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 uppercase font-semibold">Telefon</p>
-                        <p className="font-bold text-gray-900">{student.phone}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                    <span className="font-medium">Profil faol</span>
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                    <span>Profil faol</span>
                   </div>
                   
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setQrStudent(student)}
-                      className="p-2 hover:bg-purple-50 rounded-lg transition-colors group/btn"
+                      className="p-1.5 hover:bg-purple-50 rounded-lg transition-colors"
                       title="QR kod"
                     >
-                      <QrCode className="w-5 h-5 text-purple-600 group-hover/btn:scale-110 transition-transform" />
+                      <QrCode className="w-4 h-4 text-purple-600" />
                     </button>
                     <button
                       onClick={() => openProfile(student.profileToken)}
-                      className="p-2 hover:bg-blue-50 rounded-lg transition-colors group/btn"
+                      className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Profilni ochish"
                     >
-                      <ExternalLink className="w-5 h-5 text-blue-600 group-hover/btn:scale-110 transition-transform" />
+                      <ExternalLink className="w-4 h-4 text-blue-600" />
                     </button>
                     <button
                       onClick={() => copyProfileLink(student.profileToken)}
-                      className="p-2 hover:bg-green-50 rounded-lg transition-colors group/btn"
+                      className="p-1.5 hover:bg-green-50 rounded-lg transition-colors"
                       title="Havola nusxalash"
                     >
-                      <Copy className="w-5 h-5 text-green-600 group-hover/btn:scale-110 transition-transform" />
+                      <Copy className="w-4 h-4 text-green-600" />
                     </button>
                     <button 
                       onClick={() => handleEdit(student)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Tahrirlash"
                     >
-                      <Edit2 className="w-5 h-5 text-gray-600" />
+                      <Edit2 className="w-4 h-4 text-gray-600" />
                     </button>
                     <button 
                       onClick={() => handleDelete(student._id)}
-                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
                       title="O'chirish"
                     >
-                      <Trash2 className="w-5 h-5 text-red-600" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
                 </div>
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+      
+      {/* Индикатор загрузки дополнительных студентов */}
+      {hasMoreToLoad && !searchQuery && (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex items-center gap-3 text-gray-500">
+            <div className="w-6 h-6 border-3 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm font-medium">
+              Загрузка студентов... ({displayedStudents.length} из {students.length})
+            </span>
+          </div>
         </div>
       )}
 

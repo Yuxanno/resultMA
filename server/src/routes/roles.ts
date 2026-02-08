@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all roles
 router.get('/', authenticate, async (req, res) => {
   try {
-    const roles = await Role.find().sort({ isSystem: -1, name: 1 });
+    const roles = await Role.find().sort({ isSystem: -1, name: 1 }).lean();
     res.json(roles);
   } catch (error: any) {
     res.status(500).json({ message: error.message });

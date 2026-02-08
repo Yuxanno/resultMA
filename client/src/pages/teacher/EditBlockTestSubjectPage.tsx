@@ -26,8 +26,10 @@ export default function EditBlockTestSubjectPage() {
       // Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
+      // Загружаем все блок-тесты с таким же классом и датой (с полными данными!)
+      const { data: allTests } = await api.get('/block-tests', {
+        params: { fields: 'full' }
+      });
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
       // Фильтруем тесты по классу и дате
@@ -35,8 +37,6 @@ export default function EditBlockTestSubjectPage() {
         const tDate = new Date(t.date).toISOString().split('T')[0];
         return t.classNumber === testData.classNumber && tDate === testDate;
       });
-      
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
       
       // Объединяем все предметы из всех тестов
       const allSubjects: any[] = [];
@@ -50,8 +50,6 @@ export default function EditBlockTestSubjectPage() {
           }
         });
       });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
       
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {
@@ -99,9 +97,18 @@ export default function EditBlockTestSubjectPage() {
         return;
       }
       
+      // Преобразуем вопросы: image -> imageUrl для совместимости с моделью
+      const questionsFormatted = questions.map(q => ({
+        ...q,
+        imageUrl: q.image || q.imageUrl, // Переименовываем image в imageUrl
+        image: undefined // Удаляем старое поле
+      }));
+      
+      console.log('🔍 Questions with images:', questionsFormatted.filter(q => q.imageUrl).length);
+      
       // Обновляем вопросы в оригинальном тесте
       const updatedSubjectTests = [...originalTest.subjectTests];
-      updatedSubjectTests[originalSubjectIndex].questions = questions;
+      updatedSubjectTests[originalSubjectIndex].questions = questionsFormatted;
       
       await api.put(`/block-tests/${testId}`, {
         subjectTests: updatedSubjectTests
@@ -173,16 +180,28 @@ export default function EditBlockTestSubjectPage() {
     setQuestions([...questions, newQuestion]);
   };
 
-  const handleImageUpload = (questionIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (questionIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const updated = [...questions];
-        updated[questionIndex].image = reader.result as string;
-        setQuestions(updated);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    try {
+      console.log('🔄 Uploading image to server...');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const { data } = await api.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      console.log('✅ Image uploaded:', data.path);
+      
+      const updated = [...questions];
+      updated[questionIndex].image = data.path; // Сохраняем путь к файлу
+      setQuestions(updated);
+    } catch (error) {
+      console.error('❌ Error uploading image:', error);
+      alert('Rasmni yuklashda xatolik');
     }
   };
 

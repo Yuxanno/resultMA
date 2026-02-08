@@ -40,10 +40,11 @@ export default function BlockTestPrintQuestionsPage() {
       
       // Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
-      console.log('Block test data:', testData);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
+      // Загружаем все блок-тесты с таким же классом и датой (с полными данными!)
+      const { data: allTests } = await api.get('/block-tests', {
+        params: { fields: 'full' }
+      });
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
       // Фильтруем тесты по классу и дате
@@ -52,8 +53,6 @@ export default function BlockTestPrintQuestionsPage() {
         return t.classNumber === testData.classNumber && tDate === testDate;
       });
       
-      console.log('📊 Found tests in same group:', sameGroupTests.length);
-      
       // Объединяем все предметы из всех тестов
       const allSubjects: any[] = [];
       sameGroupTests.forEach((test: any) => {
@@ -61,13 +60,11 @@ export default function BlockTestPrintQuestionsPage() {
           if (st.subjectId) {
             allSubjects.push({
               ...st,
-              testId: test._id // Сохраняем ID теста для каждого предмета
+              testId: test._id
             });
           }
         });
       });
-      
-      console.log('📝 Total subjects:', allSubjects.length);
       
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {
@@ -85,7 +82,6 @@ export default function BlockTestPrintQuestionsPage() {
       const selectedStudents = allStudents.filter((s: any) => 
         studentIds.includes(s._id)
       );
-      console.log('Selected students:', selectedStudents);
       
       // Загружаем конфигурации и формируем варианты
       const variants: StudentVariant[] = [];
@@ -95,7 +91,6 @@ export default function BlockTestPrintQuestionsPage() {
       try {
         const { data: variantsData } = await api.get(`/student-variants/block-test/${id}`);
         allVariants = variantsData;
-        console.log('📦 Loaded variants:', allVariants.length);
       } catch (err) {
         console.warn('No variants found, using original questions');
       }
@@ -103,40 +98,30 @@ export default function BlockTestPrintQuestionsPage() {
       for (const student of selectedStudents) {
         try {
           const { data: config } = await api.get(`/student-test-configs/${student._id}`);
-          console.log(`Config for ${student.fullName}:`, config);
           
           // Находим вариант для этого студента
           const studentVariant = allVariants.find((v: any) => 
             v.studentId._id === student._id || v.studentId === student._id
           );
           
-          console.log(`Variant for ${student.fullName}:`, {
-            hasVariant: !!studentVariant,
-            hasShuffledQuestions: !!studentVariant?.shuffledQuestions,
-            shuffledQuestionsCount: studentVariant?.shuffledQuestions?.length || 0
-          });
-          
           // Если есть перемешанные вопросы в варианте, используем их напрямую
           if (studentVariant?.shuffledQuestions && studentVariant.shuffledQuestions.length > 0) {
-            console.log(`✅ Using shuffled questions for ${student.fullName}`);
             const questions = studentVariant.shuffledQuestions.map((q: any, idx: number) => {
               // Находим название предмета из mergedBlockTest
               let subjectName = 'Fan';
               if (q.subjectId) {
                 const subjectId = q.subjectId._id || q.subjectId;
-                console.log(`Question ${idx + 1} subjectId:`, subjectId);
+                
+                // Ищем предмет в mergedBlockTest
                 const subjectTest = mergedBlockTest.subjectTests.find(
                   (st: any) => {
-                    const stId = st.subjectId._id || st.subjectId;
-                    console.log(`  Comparing with:`, stId, st.subjectId?.nameUzb);
-                    return stId === subjectId;
+                    const stSubjectId = st.subjectId?._id || st.subjectId;
+                    return stSubjectId === subjectId;
                   }
                 );
-                if (subjectTest?.subjectId?.nameUzb) {
-                  subjectName = subjectTest.subjectId.nameUzb;
-                  console.log(`  ✅ Found subject name:`, subjectName);
-                } else {
-                  console.log(`  ❌ Subject not found for ID:`, subjectId);
+                
+                if (subjectTest) {
+                  subjectName = subjectTest.subjectId?.nameUzb || subjectTest.subjectId?.name || 'Fan';
                 }
               }
               
@@ -159,7 +144,6 @@ export default function BlockTestPrintQuestionsPage() {
             continue;
           }
           
-          console.log(`⚠️ No shuffled questions, using original for ${student.fullName}`);
           // Fallback: собираем вопросы из оригинального теста
           const questions: any[] = [];
           let questionNumber = 1;
@@ -171,12 +155,6 @@ export default function BlockTestPrintQuestionsPage() {
             const subjectTest = mergedBlockTest.subjectTests.find(
               (st: any) => (st.subjectId._id || st.subjectId) === subjectId
             );
-            
-            console.log(`Subject ${subjectConfig.subjectId.nameUzb}:`, {
-              subjectId,
-              subjectTest,
-              questionCount: subjectConfig.questionCount
-            });
             
             if (subjectTest && subjectTest.questions) {
               // Берем нужное количество вопросов
@@ -192,12 +170,9 @@ export default function BlockTestPrintQuestionsPage() {
                 image: q.imageUrl || q.image
               }));
               
-              console.log(`Questions for ${subjectConfig.subjectId.nameUzb}:`, subjectQuestions);
               questions.push(...subjectQuestions);
             }
           }
-          
-          console.log(`Total questions for ${student.fullName}:`, questions);
           
           variants.push({
             student,
@@ -209,7 +184,6 @@ export default function BlockTestPrintQuestionsPage() {
         }
       }
       
-      console.log('All variants:', variants);
       setStudentVariants(variants);
       
     } catch (err: any) {

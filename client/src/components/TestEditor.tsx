@@ -4,6 +4,7 @@ import { Plus, Trash2, Image as ImageIcon, X } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import RichTextEditor from './editor/RichTextEditor';
 import MathText from './MathText';
+import api from '../lib/api';
 
 // Helper function to get variant letter (A, B, C, D, E, F, ...)
 const getVariantLetter = (index: number): string => {
@@ -101,20 +102,47 @@ export default function TestEditor({ questions, onChange }: TestEditorProps) {
     formData.append('file', file);
     
     try {
-      // Здесь должен быть реальный upload
-      // const { data } = await api.post('/uploads', formData);
-      // const imageUrl = data.url;
+      console.log('🔄 Uploading image to server...', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      });
       
-      // Временно используем локальный URL
-      const imageUrl = URL.createObjectURL(file);
+      const { data } = await api.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      console.log('✅ Image uploaded, full server response:', JSON.stringify(data, null, 2));
+      console.log('📁 Image path from server:', data.path);
+      console.log('🌐 Full URL from server:', data.url);
+      
+      // Используем путь с сервера (относительный путь, proxy перенаправит на бэкенд)
+      const imageUrl = data.path;
+      
+      console.log('🖼️ Setting image URL in state:', imageUrl);
+      console.log('📍 Question index:', qIndex, 'Variant index:', vIndex);
       
       if (vIndex === null) {
         updateQuestion(qIndex, 'imageUrl', imageUrl);
+        console.log('✅ Image URL set for question', qIndex);
       } else {
         updateVariant(qIndex, vIndex, 'imageUrl', imageUrl);
+        console.log('✅ Image URL set for variant', vIndex, 'of question', qIndex);
       }
+      
+      // Проверяем что URL действительно сохранился
+      setTimeout(() => {
+        console.log('🔍 Verifying image URL after state update...');
+        if (vIndex === null) {
+          console.log('Question imageUrl:', questions[qIndex]?.imageUrl);
+        } else {
+          console.log('Variant imageUrl:', questions[qIndex]?.variants[vIndex]?.imageUrl);
+        }
+      }, 100);
+      
     } catch (err) {
-      console.error('Error uploading image:', err);
+      console.error('❌ Error uploading image:', err);
+      alert('Rasmni yuklashda xatolik');
     }
   };
 

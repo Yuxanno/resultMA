@@ -20,7 +20,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <div className="relative">
           <select
             className={cn(
-              'w-full h-10 rounded border border-gray-300 bg-background px-3 py-2 text-sm appearance-none cursor-pointer',
+              'w-full h-10 rounded-full border border-gray-300 bg-background px-3 py-2 text-sm appearance-none cursor-pointer',
               'transition-colors duration-150',
               'focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary',
               'hover:border-gray-400',

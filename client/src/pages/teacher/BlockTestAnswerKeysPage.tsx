@@ -26,8 +26,10 @@ export default function BlockTestAnswerKeysPage() {
       // Загружаем блок-тест
       const { data: testData } = await api.get(`/block-tests/${id}`);
       
-      // Загружаем все блок-тесты с таким же классом и датой
-      const { data: allTests } = await api.get('/block-tests');
+      // Загружаем все блок-тесты с таким же классом и датой (с полными данными!)
+      const { data: allTests } = await api.get('/block-tests', {
+        params: { fields: 'full' }
+      });
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
       // Фильтруем тесты по классу и дате
