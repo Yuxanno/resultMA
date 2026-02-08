@@ -68,7 +68,8 @@ router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, r
       filename: uploadDoc.filename,
       originalName: uploadDoc.originalName,
       path: uploadDoc.path,
-      url: `${req.protocol}://${req.get('host')}${uploadDoc.path}`
+      // Don't include full URL - let client handle it with relative path
+      url: uploadDoc.path
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Fayl yuklashda xatolik' });
