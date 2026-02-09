@@ -64,13 +64,21 @@ export default function ConfigureBlockTestPage() {
       
       const testDate = new Date(testData.date).toISOString().split('T')[0];
       
-      // Загружаем ТОЛЬКО блок-тесты с таким же классом и датой (БЕЗ полных данных!)
+      // Загружаем ТОЛЬКО блок-тесты с таким же классом и датой (С вопросами!)
       const { data: sameGroupTests } = await api.get('/block-tests', {
         params: { 
           classNumber: testData.classNumber,
           date: testDate,
-          fields: 'basic' // Загружаем только базовые данные
+          fields: 'full' // ✅ Загружаем полные данные с вопросами
         }
+      });
+      
+      console.log('🔍 Loaded same group tests:', sameGroupTests.length);
+      sameGroupTests.forEach((test: any, idx: number) => {
+        console.log(`  Test ${idx + 1}:`, test.subjectTests?.length || 0, 'subjects');
+        test.subjectTests?.forEach((st: any) => {
+          console.log(`    - ${st.subjectId?.nameUzb || 'Unknown'}:`, st.questions?.length || 0, 'questions');
+        });
       });
       
       // Объединяем все предметы из всех тестов
@@ -86,12 +94,19 @@ export default function ConfigureBlockTestPage() {
         });
       });
       
+      console.log('🔍 Merged subjects:', allSubjects.length);
+      allSubjects.forEach((st: any, idx: number) => {
+        console.log(`  Subject ${idx + 1}:`, st.subjectId?.nameUzb || 'Unknown', '-', st.questions?.length || 0, 'questions');
+      });
+      
       // Создаем объединенный блок-тест для отображения
       const mergedBlockTest = {
         ...testData,
         subjectTests: allSubjects,
         allTestIds: sameGroupTests.map((t: any) => t._id)
       };
+      
+      console.log('✅ Final mergedBlockTest.subjectTests:', mergedBlockTest.subjectTests.length);
       
       setBlockTest(mergedBlockTest);
       
@@ -538,6 +553,7 @@ export default function ConfigureBlockTestPage() {
         onClose={() => setShowShuffleModal(false)}
         students={students}
         onShuffle={handleShuffle}
+        loading={saving}
       />
     </div>
   );

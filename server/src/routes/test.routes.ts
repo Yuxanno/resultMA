@@ -228,19 +228,35 @@ router.post('/:id/generate-variants', authenticate, async (req, res) => {
       const shuffledQuestions = questionOrder.map((qIndex) => {
         const originalQuestion = test.questions[qIndex] as any;
         
+        console.log('🔀 Processing question:', {
+          index: qIndex,
+          text: originalQuestion.text?.substring(0, 50),
+          hasVariants: !!originalQuestion.variants,
+          variantsCount: originalQuestion.variants?.length || 0,
+          correctAnswer: originalQuestion.correctAnswer
+        });
+        
         // Проверяем наличие variants и correctAnswer
         if (!originalQuestion.variants || !originalQuestion.correctAnswer) {
+          console.log('⚠️ Question has no variants or correctAnswer, skipping shuffle');
           return {
             ...originalQuestion,
             originalQuestionIndex: qIndex
           };
         }
         
+        console.log('📝 BEFORE shuffle:', {
+          variants: originalQuestion.variants.map((v: any, i: number) => `${String.fromCharCode(65 + i)}: ${v.text?.substring(0, 20)}`),
+          correctAnswer: originalQuestion.correctAnswer
+        });
+        
         // Создаем массив индексов ответов [0, 1, 2, 3, ...]
         const answerIndices = [...Array(originalQuestion.variants.length).keys()];
         
         // Перемешиваем индексы
         const shuffledAnswerIndices = shuffleArray(answerIndices);
+        
+        console.log('🔄 Shuffled indices:', shuffledAnswerIndices);
         
         // Создаем новый массив ответов в перемешанном порядке
         const shuffledVariants = shuffledAnswerIndices.map(idx => originalQuestion.variants[idx]);
@@ -249,6 +265,13 @@ router.post('/:id/generate-variants', authenticate, async (req, res) => {
         const originalCorrectIndex = originalQuestion.correctAnswer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
         const newCorrectIndex = shuffledAnswerIndices.indexOf(originalCorrectIndex);
         const newCorrectAnswer = String.fromCharCode(65 + newCorrectIndex); // 0=A, 1=B, 2=C, 3=D
+        
+        console.log('✅ AFTER shuffle:', {
+          variants: shuffledVariants.map((v: any, i: number) => `${String.fromCharCode(65 + i)}: ${v.text?.substring(0, 20)}`),
+          correctAnswer: newCorrectAnswer,
+          originalCorrectIndex,
+          newCorrectIndex
+        });
         
         return {
           ...originalQuestion,
@@ -273,7 +296,27 @@ router.post('/:id/generate-variants', authenticate, async (req, res) => {
       
       await variant.save();
       variants.push(variant);
+      
+      // Логируем первый вопрос первого варианта
+      if (variants.length === 1 && shuffledQuestions.length > 0) {
+        const studentName = typeof sg.studentId === 'object' && sg.studentId !== null && 'fullName' in sg.studentId 
+          ? (sg.studentId as any).fullName 
+          : 'Unknown';
+        console.log('📝 Sample saved variant:', {
+          variantCode,
+          studentName,
+          firstQuestion: {
+            text: shuffledQuestions[0].text?.substring(0, 50),
+            variants: shuffledQuestions[0].variants?.map((v: any, i: number) => 
+              `${String.fromCharCode(65 + i)}: ${v.text?.substring(0, 20)}`
+            ),
+            correctAnswer: shuffledQuestions[0].correctAnswer
+          }
+        });
+      }
     }
+    
+    console.log(`✅ Generated ${variants.length} variants for test ${test._id}`);
     
     res.json({ message: 'Variantlar yaratildi', count: variants.length, variants });
   } catch (error) {

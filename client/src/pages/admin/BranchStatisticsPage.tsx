@@ -305,6 +305,8 @@ export default function BranchStatisticsPage() {
                     variants={item}
                     whileHover={{ scale: 1.02, y: -5 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    onClick={() => navigate(`/admin/groups/${group._id}`)}
+                    className="cursor-pointer"
                   >
                     <Card className="relative overflow-hidden bg-white border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300">
                       <div className={`absolute top-0 left-0 right-0 h-1 ${
@@ -337,7 +339,7 @@ export default function BranchStatisticsPage() {
                           <div className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 rounded-lg sm:rounded-xl">
                             <span className="text-xs sm:text-sm font-medium text-gray-600">O'quvchilar</span>
                             <span className="text-lg sm:text-xl font-bold text-gray-900">
-                              {group.studentsCount} <span className="text-gray-400">/</span> {group.capacity}
+                              {group.studentsCount}
                             </span>
                           </div>
                           
@@ -376,12 +378,6 @@ export default function BranchStatisticsPage() {
                             <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-orange-50 border border-orange-200 rounded-lg sm:rounded-xl">
                               <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600 flex-shrink-0" />
                               <span className="text-xs font-medium text-orange-700">O'rtacha natija</span>
-                            </div>
-                          )}
-                          {isPoor && avgPercentage > 0 && (
-                            <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-red-50 border border-red-200 rounded-lg sm:rounded-xl">
-                              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" />
-                              <span className="text-xs font-medium text-red-700">Yaxshilash kerak</span>
                             </div>
                           )}
                         </div>

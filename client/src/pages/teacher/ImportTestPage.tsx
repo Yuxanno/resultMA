@@ -287,8 +287,13 @@ export default function ImportTestPage() {
   const handleAddQuestion = () => {
     const newQuestion: ParsedQuestion = {
       text: '',
-      variants: [],
-      correctAnswer: '',
+      variants: [
+        { letter: 'A', text: '' },
+        { letter: 'B', text: '' },
+        { letter: 'C', text: '' },
+        { letter: 'D', text: '' }
+      ],
+      correctAnswer: 'A',
       points: 1,
     };
     setParsedQuestions([...parsedQuestions, newQuestion]);
@@ -477,7 +482,7 @@ export default function ImportTestPage() {
                       <option value="">Guruhni tanlang</option>
                       {groups.map((group) => (
                         <option key={group._id} value={group._id}>
-                          {group.name} - {group.subjectId?.name || 'Fan ko\'rsatilmagan'}
+                          {group.name} - {group.subjectId?.nameUzb || 'Fan ko\'rsatilmagan'}
                         </option>
                       ))}
                     </select>

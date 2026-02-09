@@ -17,9 +17,10 @@ interface AnswerSheetProps {
   qrData: string;
   columns?: number; // 2 или 3 столбца
   compact?: boolean; // Компактный режим для печати нескольких листов на странице
+  sheetsPerPage?: number; // Количество листов на странице (1, 2 или 4)
 }
 
-function AnswerSheet({ student, test, questions, qrData, columns, compact = false }: AnswerSheetProps) {
+function AnswerSheet({ student, test, questions, qrData, columns, compact = false, sheetsPerPage = 1 }: AnswerSheetProps) {
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -44,15 +45,74 @@ function AnswerSheet({ student, test, questions, qrData, columns, compact = fals
   const autoColumns = columns || (safeQuestions > 60 ? 3 : 2);
   const questionsPerColumn = Math.ceil(safeQuestions / autoColumns);
 
+  // Определяем паддинги в зависимости от количества листов на странице
+  const getPadding = () => {
+    if (sheetsPerPage === 4) {
+      // Для 4 листов - небольшие паддинги для нормальных отступов
+      return {
+        paddingTop: '3mm',
+        paddingLeft: '3mm',
+        paddingRight: '3mm',
+        paddingBottom: '3mm'
+      };
+    } else if (sheetsPerPage === 2) {
+      // Для 2 листов - средние паддинги
+      return {
+        paddingTop: '4mm',
+        paddingLeft: '4mm',
+        paddingRight: '4mm',
+        paddingBottom: '3mm'
+      };
+    } else {
+      // Для 1 листа - стандартные паддинги
+      return {
+        paddingTop: '15mm',
+        paddingLeft: '15mm',
+        paddingRight: '15mm',
+        paddingBottom: '12mm'
+      };
+    }
+  };
+
+  const padding = getPadding();
+
+  // Определяем размеры контейнера в зависимости от количества листов
+  const getContainerSize = () => {
+    if (sheetsPerPage === 4) {
+      // Для 4 листов - занимаем 100% родителя (grid cell)
+      return {
+        width: '100%',
+        height: '100%'
+      };
+    } else if (sheetsPerPage === 2) {
+      // Для 2 листов - занимаем 100% родителя (grid cell)
+      return {
+        width: '100%',
+        height: '100%'
+      };
+    } else {
+      // Для 1 листа - полная страница
+      return {
+        width: '210mm',
+        height: '297mm'
+      };
+    }
+  };
+
+  const containerSize = getContainerSize();
+
+  // Определяем, нужен ли супер-компактный режим (для 4 листов)
+  const superCompact = sheetsPerPage === 4;
+
   const renderAnswerBubbles = (questionNumber: number) => {
     return (
-      <div className={`flex items-center gap-1 ${compact ? 'mb-0.5' : 'mb-1'}`} key={questionNumber}>
-        <span className={`w-6 font-bold text-gray-900 text-right ${compact ? 'text-[9px]' : 'text-[11px]'}`}>{questionNumber}.</span>
-        <div className={compact ? 'flex gap-1' : 'flex gap-1.5'}>
+      <div className={`flex items-center ${superCompact ? 'gap-1 mb-0' : compact ? 'gap-1.5 mb-0.5' : 'gap-2 mb-1'}`} key={questionNumber}>
+        <span className={`w-6 font-bold text-gray-900 text-right ${superCompact ? 'text-[7px]' : compact ? 'text-[9px]' : 'text-[11px]'}`}>{questionNumber}.</span>
+        <div className={superCompact ? 'flex gap-1.5' : compact ? 'flex gap-2' : 'flex gap-2.5'}>
           {['A', 'B', 'C', 'D'].map((letter) => (
             <div key={letter} className="flex items-center">
               {/* Уменьшенные кружки для компактности */}
-              <div className={compact ? 'w-3.5 h-3.5 rounded-full' : 'w-4 h-4 rounded-full'} style={{ border: '2px solid #000000', backgroundColor: '#ffffff' }}></div>
+              <div className={superCompact ? 'w-3 h-3 rounded-full' : compact ? 'w-3.5 h-3.5 rounded-full' : 'w-4 h-4 rounded-full'} style={{ border: '2px solid #000000', backgroundColor: '#ffffff' }}></div>
             </div>
           ))}
         </div>
@@ -65,12 +125,12 @@ function AnswerSheet({ student, test, questions, qrData, columns, compact = fals
     
     // Добавляем заголовок с буквами только один раз в начале колонки
     columnQuestions.push(
-      <div key="header" className={`flex items-center gap-1 border-b border-gray-300 ${compact ? 'mb-1 pb-0.5' : 'mb-1.5 pb-1'}`}>
-        <span className={`w-6 font-bold text-gray-900 text-right ${compact ? 'text-[9px]' : 'text-[11px]'}`}></span>
-        <div className={compact ? 'flex gap-1' : 'flex gap-1.5'}>
+      <div key="header" className={`flex items-center ${superCompact ? 'gap-1 mb-0.5 pb-0' : compact ? 'gap-1.5 mb-1 pb-0.5' : 'gap-2 mb-1.5 pb-1'} border-b border-gray-300`}>
+        <span className={`w-6 font-bold text-gray-900 text-right ${superCompact ? 'text-[7px]' : compact ? 'text-[9px]' : 'text-[11px]'}`}></span>
+        <div className={superCompact ? 'flex gap-1.5' : compact ? 'flex gap-2' : 'flex gap-2.5'}>
           {['A', 'B', 'C', 'D'].map((letter) => (
-            <div key={letter} className={`flex items-center justify-center ${compact ? 'w-3.5' : 'w-4'}`}>
-              <span className={`font-bold text-gray-700 ${compact ? 'text-[8px]' : 'text-[10px]'}`}>{letter}</span>
+            <div key={letter} className={`flex items-center justify-center ${superCompact ? 'w-3' : compact ? 'w-3.5' : 'w-4'}`}>
+              <span className={`font-bold text-gray-700 ${superCompact ? 'text-[6px]' : compact ? 'text-[8px]' : 'text-[10px]'}`}>{letter}</span>
             </div>
           ))}
         </div>
@@ -93,25 +153,22 @@ function AnswerSheet({ student, test, questions, qrData, columns, compact = fals
         fontFamily: 'Arial, sans-serif', 
         backgroundColor: '#ffffff', 
         willChange: 'transform',
-        width: '210mm',
-        height: compact ? '148.5mm' : '297mm',
-        overflow: compact ? 'hidden' : 'visible'
+        width: containerSize.width,
+        height: containerSize.height,
+        overflow: 'hidden'
       }}
     >
       <div 
         style={{
-          paddingTop: compact ? '2mm' : '15mm',
-          paddingLeft: compact ? '2mm' : '15mm',
-          paddingRight: compact ? '2mm' : '15mm',
-          paddingBottom: compact ? '1mm' : '12mm'
+          ...padding
         }}
       >
         {/* Header - компактный */}
-        <div className={`border-[3px] border-gray-900 mb-2 ${compact ? 'p-1.5' : 'p-2'}`}>
+        <div className={`border-[3px] border-gray-900 ${superCompact ? 'mb-1 p-1' : compact ? 'mb-2 p-1.5' : 'mb-2 p-2'}`}>
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h1 className={`font-bold mb-1 text-gray-900 ${compact ? 'text-sm' : 'text-base'}`}>JAVOB VARAQASI</h1>
-              <div className={`grid grid-cols-2 gap-x-2 gap-y-0 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+              <h1 className={`font-bold mb-1 text-gray-900 ${superCompact ? 'text-xs' : compact ? 'text-sm' : 'text-base'}`}>JAVOB VARAQASI</h1>
+              <div className={`grid grid-cols-2 gap-x-2 gap-y-0 ${superCompact ? 'text-[7px]' : compact ? 'text-[9px]' : 'text-[10px]'}`}>
                 <div className="flex">
                   <span className="font-semibold w-14">O'quvchi:</span>
                   <span className="flex-1 truncate">{student.fullName}</span>
@@ -137,9 +194,9 @@ function AnswerSheet({ student, test, questions, qrData, columns, compact = fals
               </div>
             </div>
             {qrData && (
-              <div className="flex flex-col items-center gap-1 ml-3 p-2 bg-white">
+              <div className={`flex flex-col items-center gap-1 ml-3 p-2 bg-white ${superCompact ? 'scale-75' : ''}`}>
                 <canvas ref={qrRef} className="block"></canvas>
-                <p className="text-[8px] text-gray-900 font-mono font-bold">{student.variantCode}</p>
+                <p className={`text-gray-900 font-mono font-bold ${superCompact ? 'text-[6px]' : 'text-[8px]'}`}>{student.variantCode}</p>
               </div>
             )}
           </div>
@@ -149,17 +206,17 @@ function AnswerSheet({ student, test, questions, qrData, columns, compact = fals
         {/* Инструкции убраны для экономии места */}
 
         {/* Answer Grid - максимум места */}
-        <div className={`border-[3px] border-gray-900 ${compact ? 'p-1.5' : 'p-2'}`}>
-          <h2 className={`font-bold text-center text-gray-900 border-b-2 border-gray-400 ${compact ? 'text-[10px] mb-1 pb-0.5' : 'text-xs mb-1.5 pb-1'}`}>
+        <div className={`border-[3px] border-gray-900 ${superCompact ? 'p-1' : compact ? 'p-1.5' : 'p-2'}`}>
+          <h2 className={`font-bold text-center text-gray-900 border-b-2 border-gray-400 ${superCompact ? 'text-[8px] mb-0.5 pb-0' : compact ? 'text-[10px] mb-1 pb-0.5' : 'text-xs mb-1.5 pb-1'}`}>
             JAVOBLAR ({safeQuestions} ta savol)
           </h2>
           
-          <div className={`grid ${compact ? 'gap-2' : 'gap-3'} ${autoColumns === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <div className={`grid ${superCompact ? 'gap-1' : compact ? 'gap-2' : 'gap-3'} ${autoColumns === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
             {Array.from({ length: autoColumns }, (_, colIndex) => {
               const startNum = colIndex * questionsPerColumn + 1;
               const endNum = (colIndex + 1) * questionsPerColumn;
               return (
-                <div key={colIndex} className="border-r-2 last:border-r-0 border-gray-300 pr-2 last:pr-0">
+                <div key={colIndex} className={`border-r-2 last:border-r-0 border-gray-300 ${superCompact ? 'pr-1 last:pr-0' : 'pr-2 last:pr-0'}`}>
                   {renderColumn(startNum, endNum)}
                 </div>
               );
@@ -168,12 +225,14 @@ function AnswerSheet({ student, test, questions, qrData, columns, compact = fals
         </div>
 
         {/* Footer - минимальный */}
-        <div className="mt-1 pt-1 border-t border-gray-300">
-          <div className="flex justify-between items-center text-[8px] text-gray-500">
-            <p>🤖 Avtomatik skanerlash</p>
-            <p className="font-mono">{new Date().toLocaleDateString('uz-UZ')}</p>
+        {!superCompact && (
+          <div className="mt-1 pt-1 border-t border-gray-300">
+            <div className="flex justify-between items-center text-[8px] text-gray-500">
+              <p>🤖 Avtomatik skanerlash</p>
+              <p className="font-mono">{new Date().toLocaleDateString('uz-UZ')}</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -185,6 +244,8 @@ export default memo(AnswerSheet, (prevProps, nextProps) => {
     prevProps.student.variantCode === nextProps.student.variantCode &&
     prevProps.questions === nextProps.questions &&
     prevProps.qrData === nextProps.qrData &&
-    prevProps.columns === nextProps.columns
+    prevProps.columns === nextProps.columns &&
+    prevProps.sheetsPerPage === nextProps.sheetsPerPage &&
+    prevProps.compact === nextProps.compact
   );
 });

@@ -148,8 +148,9 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       // Минимальные данные для списка
       query = query.select('classNumber date periodMonth periodYear createdAt _id');
     } else if (fields === 'full') {
-      // Полные данные с предметами
+      // Полные данные с предметами И вопросами
       query = query.populate('subjectTests.subjectId', 'nameUzb nameRu');
+      // НЕ используем .select() чтобы вернуть ВСЕ поля включая questions
     } else if (fields === 'basic') {
       // Базовые данные с предметами но без вопросов
       query = query.select('classNumber date periodMonth periodYear createdAt _id subjectTests.subjectId')
@@ -165,6 +166,16 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       .exec();
     
     console.log(`✅ Found ${blockTests.length} block tests (fields: ${fields || 'minimal'}, class: ${classNumber || 'all'}, date: ${date || 'all'})`);
+    
+    // Логируем количество вопросов для fields=full
+    if (fields === 'full' && blockTests.length > 0) {
+      blockTests.forEach((bt: any, idx: number) => {
+        console.log(`  📋 Block test ${idx + 1}: ${bt.subjectTests?.length || 0} subjects`);
+        bt.subjectTests?.forEach((st: any) => {
+          console.log(`    - ${st.subjectId?.nameUzb || 'Unknown'}: ${st.questions?.length || 0} questions`);
+        });
+      });
+    }
     
     // Отключаем все виды кэширования
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -384,6 +395,12 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
       // Create a copy of the question
       const shuffledQuestion = { ...question };
       
+      console.log('🔀 BEFORE shuffle:', {
+        text: question.text?.substring(0, 50),
+        correctAnswer: question.correctAnswer,
+        variants: question.variants.map((v: any) => `${v.letter}: ${v.text?.substring(0, 20)}`)
+      });
+      
       // Find the original correct answer text
       const originalCorrectVariant = question.variants.find(
         (v: any) => v.letter === question.correctAnswer
@@ -413,6 +430,11 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
         // Update the correct answer to the new letter
         shuffledQuestion.correctAnswer = letters[newIndex];
         shuffledQuestion.variants = reorderedVariants;
+        
+        console.log('✅ AFTER shuffle:', {
+          correctAnswer: shuffledQuestion.correctAnswer,
+          variants: shuffledQuestion.variants.map((v: any) => `${v.letter}: ${v.text?.substring(0, 20)}`)
+        });
       }
       
       return shuffledQuestion;
@@ -495,6 +517,21 @@ router.post('/:id/generate-variants', authenticate, async (req: AuthRequest, res
       if (batchVariants.length > 0) {
         await StudentVariant.insertMany(batchVariants);
         variants.push(...batchVariants);
+        
+        console.log(`✅ Saved ${batchVariants.length} variants for batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+        
+        // Логируем первый вариант для проверки
+        const firstVariant = batchVariants[0];
+        if (firstVariant && firstVariant.shuffledQuestions && firstVariant.shuffledQuestions.length > 0) {
+          const firstQuestion = firstVariant.shuffledQuestions[0];
+          if (firstQuestion) {
+            console.log('📝 Sample question from saved variant:', {
+              text: firstQuestion.text?.substring(0, 50),
+              correctAnswer: firstQuestion.correctAnswer,
+              variants: firstQuestion.variants?.map((v: any) => `${v.letter}: ${v.text?.substring(0, 20)}`)
+            });
+          }
+        }
       }
     }
 

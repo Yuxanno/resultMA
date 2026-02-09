@@ -284,55 +284,47 @@ export default function BlockTestPrintAnswersPage() {
               height: '297mm',
               margin: '0 auto',
               position: 'relative',
-              padding: sheetsPerPage === 1 ? '5mm' : sheetsPerPage === 2 ? '2mm 5mm' : '2mm',
+              padding: '5mm',
               backgroundColor: '#ffffff',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start'
+              display: sheetsPerPage === 1 ? 'block' : 'grid',
+              gridTemplateColumns: sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
+              gridTemplateRows: sheetsPerPage === 2 ? '1fr 1fr' : sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
+              gap: sheetsPerPage === 4 ? '2mm' : sheetsPerPage === 2 ? '3mm' : '0',
+              boxSizing: 'border-box'
             }}>
-              <div className={`${
-                sheetsPerPage === 2 ? 'flex flex-col' : 
-                sheetsPerPage === 4 ? 'grid grid-cols-2 gap-1' : 
-                ''
-              }`} style={{ 
-                width: '100%',
-                height: '100%',
-                gap: sheetsPerPage === 2 ? '0' : sheetsPerPage === 4 ? '2mm' : '0'
-              }}>
-                {variantsOnPage.map((variant, idx) => (
-                  <div 
-                    key={variant.student._id}
-                    style={{
-                      width: '100%',
-                      height: sheetsPerPage === 2 ? '50%' : sheetsPerPage === 4 ? 'calc(50% - 1mm)' : '100%',
-                      overflow: 'visible',
-                      position: 'relative',
-                      border: 'none',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      justifyContent: 'center'
+              {variantsOnPage.map((variant, idx) => (
+                <div 
+                  key={variant.student._id}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    justifyContent: 'stretch'
+                  }}
+                >
+                  <AnswerSheet
+                    student={{
+                      fullName: variant.student.fullName || `${variant.student.firstName} ${variant.student.lastName}`,
+                      variantCode: variant.variantCode
                     }}
-                  >
-                    <AnswerSheet
-                      student={{
-                        fullName: variant.student.fullName || `${variant.student.firstName} ${variant.student.lastName}`,
-                        variantCode: variant.variantCode
-                      }}
-                      test={{
-                        name: blockTest.name || 'Blok Test',
-                        subjectName: blockTest.subjectTests?.map((st: any) => st.subjectId?.nameUzb || st.subjectId).join(', ') || 'Fanlar',
-                        classNumber: blockTest.classNumber,
-                        groupLetter: variant.student.directionId?.nameUzb?.charAt(0) || 'A',
-                        groupName: variant.student.groupId?.name || variant.student.groupId?.nameUzb || ''
-                      }}
-                      questions={variant.questions.length}
-                      qrData={variant.qrPayload}
-                      columns={columnsCount}
-                      compact={sheetsPerPage > 1}
-                    />
-                  </div>
-                ))}
-              </div>
+                    test={{
+                      name: blockTest.name || 'Blok Test',
+                      subjectName: blockTest.subjectTests?.map((st: any) => st.subjectId?.nameUzb || st.subjectId).join(', ') || 'Fanlar',
+                      classNumber: blockTest.classNumber,
+                      groupLetter: variant.student.directionId?.nameUzb?.charAt(0) || 'A',
+                      groupName: variant.student.groupId?.name || variant.student.groupId?.nameUzb || ''
+                    }}
+                    questions={variant.questions.length}
+                    qrData={variant.qrPayload}
+                    columns={columnsCount}
+                    compact={sheetsPerPage > 1}
+                    sheetsPerPage={sheetsPerPage}
+                  />
+                </div>
+              ))}
             </div>
           ));
         })()}

@@ -105,8 +105,11 @@ export default function BlockTestsPage() {
       });
       
       console.log('✅ Prefetched block test:', testId);
-    } catch (err) {
-      console.log('⚠️ Prefetch failed:', testId);
+    } catch (err: any) {
+      // Тихо игнорируем 404 - тест может быть удален
+      if (err.response?.status !== 404) {
+        console.log('⚠️ Prefetch failed:', testId);
+      }
     }
   };
 
@@ -274,11 +277,26 @@ export default function BlockTestsPage() {
     try {
       console.log('🗑️ Deleting', group.tests.length, 'block tests...');
       
-      // Удаляем все тесты параллельно
+      // Очищаем prefetch кэш для удаляемых тестов
+      group.tests.forEach((test: any) => {
+        prefetchCache.delete(test._id);
+        console.log('🧹 Cleared prefetch cache for:', test._id);
+      });
+      
+      // Удаляем все тесты параллельно, игнорируя 404 (уже удалены)
       await Promise.all(
-        group.tests.map((test: any) => 
-          api.delete(`/block-tests/${test._id}`)
-        )
+        group.tests.map(async (test: any) => {
+          try {
+            await api.delete(`/block-tests/${test._id}`);
+          } catch (err: any) {
+            // Если 404 - тест уже удален, это нормально
+            if (err.response?.status === 404) {
+              console.log('⚠️ Block test already deleted:', test._id);
+              return;
+            }
+            throw err; // Другие ошибки пробрасываем дальше
+          }
+        })
       );
       
       console.log('✅ All block tests deleted, refreshing list...');
@@ -718,6 +736,7 @@ export default function BlockTestsPage() {
           onClose={() => setShowShuffleModal(false)}
           students={students}
           onShuffle={handleShuffle}
+          loading={saving}
         />
       </div>
     );

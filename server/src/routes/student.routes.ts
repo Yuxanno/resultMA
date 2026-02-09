@@ -168,25 +168,30 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     const skip = (pageNum - 1) * limitNum;
     
     const students = await Student.find(filter)
-      .select('fullName _id profileToken')
+      .select('fullName classNumber phone directionId branchId _id profileToken')
+      .populate('directionId', 'nameUzb')
+      .populate('branchId', 'name')
       .sort({ fullName: 1 })
       .skip(skip)
       .limit(limitNum)
       .lean()
       .exec();
     
-    // ОПТИМИЗАЦИЯ: Отправляем только имя и ID - остальное загрузится по требованию
-    // Это ускоряет загрузку в 10+ раз!
-    const minimalStudents = students.map((student: any) => ({
+    // Return students with all necessary fields for display
+    const studentsWithDetails = students.map((student: any) => ({
       _id: student._id,
       fullName: student.fullName,
-      profileToken: student.profileToken
+      classNumber: student.classNumber,
+      phone: student.phone,
+      profileToken: student.profileToken,
+      directionId: student.directionId,
+      branchId: student.branchId
     }));
     
     // Cache the result
-    cacheService.set(cacheKey, minimalStudents, CacheTTL.LIST);
+    cacheService.set(cacheKey, studentsWithDetails, CacheTTL.LIST);
     
-    res.json(minimalStudents);
+    res.json(studentsWithDetails);
   } catch (error: any) {
     console.error('Error fetching students:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });

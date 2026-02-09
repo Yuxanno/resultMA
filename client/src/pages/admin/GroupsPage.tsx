@@ -320,7 +320,7 @@ export default function GroupsPage() {
             <Card 
               key={group._id} 
               className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden"
-              onClick={() => navigate(`/custom/groups/${group._id}`)}
+              onClick={() => navigate(`/admin/groups/${group._id}`)}
             >
               <CardContent className="p-6 relative">
                 <div className="flex items-start gap-4 mb-4">

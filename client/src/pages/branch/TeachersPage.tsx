@@ -168,6 +168,7 @@ export default function TeachersPage() {
               <Input
                 label="Parol"
                 type="password"
+                showPasswordToggle={true}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required={!editingTeacher}

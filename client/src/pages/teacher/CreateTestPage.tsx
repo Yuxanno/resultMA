@@ -193,10 +193,10 @@ export default function CreateTestPage() {
                     required
                     className="text-base sm:text-lg"
                   >
-                    <option value="">Tanlang</option>
+                    <option value="">Guruhni tanlang</option>
                     {groups.map((g) => (
                       <option key={g._id} value={g._id}>
-                        {g.name} ({g.classNumber}-sinf)
+                        {g.classNumber}-{g.name} - {g.subjectId?.nameUzb || "Fan ko'rsatilmagan"}
                       </option>
                     ))}
                   </Select>

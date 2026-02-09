@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
-import { Lock, User, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Lock, User, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import '../landing-animations.css';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
@@ -140,16 +141,27 @@ export default function LoginPage() {
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl opacity-0 group-focus-within:opacity-10 transition-opacity blur"></div>
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-blue-600 z-10" />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     placeholder="Parolni kiriting"
-                    className="relative w-full pl-12 pr-4 py-4 glass-effect border border-white/20 rounded-xl 
+                    className="relative w-full pl-12 pr-12 py-4 glass-effect border border-white/20 rounded-xl 
                       focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20
                       outline-none transition-all text-gray-900 placeholder:text-gray-400
                       hover:border-white/30 shadow-sm"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-10"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
                 </div>
               </div>
 

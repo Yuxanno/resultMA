@@ -210,10 +210,10 @@ export default function CreateAssignmentPage() {
                       required
                       className="h-9"
                     >
-                      <option value="">Tanlang</option>
+                      <option value="">Guruhni tanlang</option>
                       {groups.map((g) => (
                         <option key={g._id} value={g._id}>
-                          {g.name}
+                          {g.classNumber}-{g.name} - {g.subjectId?.nameUzb || "Fan ko'rsatilmagan"}
                         </option>
                       ))}
                     </Select>

@@ -32,11 +32,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Не логируем 404 для student-test-configs как ошибку
+    // Не логируем 404 для student-test-configs и block-tests как ошибку
     const is404ForConfigs = error.response?.status === 404 && 
                            error.config?.url?.includes('/student-test-configs/');
+    const is404ForBlockTests = error.response?.status === 404 && 
+                              error.config?.url?.includes('/block-tests/');
     
-    if (!is404ForConfigs && import.meta.env.DEV) {
+    if (!is404ForConfigs && !is404ForBlockTests && import.meta.env.DEV) {
       const url = error.config?.url || 'unknown';
       const status = error.response?.status || 'no response';
       const data = error.response?.data || error.message || 'unknown error';

@@ -20,6 +20,7 @@ export default function TestViewPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
@@ -58,12 +59,15 @@ export default function TestViewPage() {
 
   const handleGenerateVariants = async () => {
     try {
+      setGenerating(true);
       await api.post(`/tests/${id}/generate-variants`);
       success('Variantlar yaratildi');
       fetchTest();
     } catch (err: any) {
       console.error('Error generating variants:', err);
       error('Variantlar yaratishda xatolik');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -174,10 +178,12 @@ export default function TestViewPage() {
       {!hasVariants && (
         <Button
           onClick={handleGenerateVariants}
+          disabled={generating}
+          loading={generating}
           className="w-full bg-purple-600 hover:bg-purple-700"
         >
           <Shuffle className="w-4 h-4 mr-2" />
-          Variantlar yaratish
+          {generating ? 'Variantlar yaratilmoqda...' : 'Variantlar yaratish'}
         </Button>
       )}
 

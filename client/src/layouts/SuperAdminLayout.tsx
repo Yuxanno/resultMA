@@ -28,11 +28,16 @@ const DashboardPage = lazy(() => import('../pages/admin/DashboardPage'));
 const BranchStatisticsPage = lazy(() => import('../pages/admin/BranchStatisticsPage'));
 const RolesPage = lazy(() => import('../pages/admin/RolesPage'));
 const ApplicationsPage = lazy(() => import('../pages/admin/ApplicationsPage'));
+const StudentsPage = lazy(() => import('../pages/admin/StudentsPage'));
+const GroupsPage = lazy(() => import('../pages/admin/GroupsPage'));
+const GroupDetailPage = lazy(() => import('../pages/admin/GroupDetailPage'));
 
 const menuItems = [
   { path: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard },
   { path: '/admin/applications', label: 'Qabul arizalari', icon: FileText },
   { path: '/admin/branches', label: 'Filiallar', icon: Building2 },
+  { path: '/admin/groups', label: 'Guruhlar', icon: Users },
+  { path: '/admin/students', label: "O'quvchilar", icon: GraduationCap },
   { path: '/admin/subjects', label: 'Fanlar', icon: BookOpen },
   { path: '/admin/directions', label: "Yo'nalishlar", icon: Compass },
   { path: '/admin/users', label: 'Foydalanuvchilar', icon: Users },
@@ -300,6 +305,9 @@ export default function SuperAdminLayout() {
               <Route path="/applications" element={<ApplicationsPage />} />
               <Route path="/branches" element={<BranchesPage />} />
               <Route path="/branches/:id/statistics" element={<BranchStatisticsPage />} />
+              <Route path="/groups" element={<GroupsPage />} />
+              <Route path="/groups/:id" element={<GroupDetailPage />} />
+              <Route path="/students" element={<StudentsPage />} />
               <Route path="/subjects" element={<SubjectsPage />} />
               <Route path="/directions" element={<DirectionsPage />} />
               <Route path="/users" element={<UsersPage />} />

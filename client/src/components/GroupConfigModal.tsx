@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -29,42 +29,62 @@ export default function GroupConfigModal({
   const [allSubjects, setAllSubjects] = useState<any[]>([]);
   const [pointsConfig, setPointsConfig] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true); // ⭐ НОВОЕ
+  const [loading, setLoading] = useState(true);
   const [previousTotalQuestions, setPreviousTotalQuestions] = useState(90);
 
-  const getMaxQuestionsForSubject = (subjectId: string): number => {
-    if (!blockTest?.subjectTests) {
-      console.log('⚠️ No subjectTests in blockTest');
-      return 999;
+  // 🔍 Логируем blockTest при открытии модалки
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔍 GroupConfigModal opened with blockTest:', {
+        hasBlockTest: !!blockTest,
+        subjectTestsCount: blockTest?.subjectTests?.length || 0,
+        subjectTests: blockTest?.subjectTests?.map((st: any) => ({
+          subjectName: st.subjectId?.nameUzb || 'Unknown',
+          questionsCount: st.questions?.length || 0
+        }))
+      });
     }
+  }, [isOpen, blockTest]);
+
+  // ⭐ Мемоизируем карту максимальных вопросов для каждого предмета
+  const maxQuestionsMap = useMemo(() => {
+    const map = new Map<string, number>();
     
-    console.log('🔍 Getting max questions for subject:', subjectId);
-    console.log('📋 BlockTest subjectTests:', blockTest.subjectTests.length);
-    
-    // Находим ВСЕ тесты по этому предмету и суммируем вопросы
-    const subjectTests = blockTest.subjectTests.filter(
-      (st: any) => (st.subjectId?._id || st.subjectId) === subjectId
-    );
-    
-    console.log('📝 Found subject tests:', subjectTests.length);
-    
-    // Суммируем количество вопросов из всех тестов
-    const totalQuestions = subjectTests.reduce((sum: number, st: any) => {
+    if (!blockTest?.subjectTests || !Array.isArray(blockTest.subjectTests)) {
+      console.log('⚠️ No subjectTests in blockTest or not an array');
+      return map;
+    }
+
+    console.log('🔍 Building maxQuestionsMap from', blockTest.subjectTests.length, 'subject tests');
+
+    // Группируем тесты по предметам и считаем общее количество вопросов
+    blockTest.subjectTests.forEach((st: any, idx: number) => {
+      const subjectId = st.subjectId?._id || st.subjectId;
+      if (!subjectId) {
+        console.log(`  ⚠️ Test ${idx + 1}: No subjectId`);
+        return;
+      }
+
       const questionsCount = st.questions?.length || 0;
-      console.log('  - Test has', questionsCount, 'questions');
-      return sum + questionsCount;
-    }, 0);
-    
-    console.log('✅ Total questions for subject:', totalQuestions);
-    
-    return totalQuestions;
+      const currentTotal = map.get(subjectId) || 0;
+      map.set(subjectId, currentTotal + questionsCount);
+      
+      console.log(`  ✅ Test ${idx + 1}: ${st.subjectId?.nameUzb || 'Unknown'} - ${questionsCount} questions (total: ${currentTotal + questionsCount})`);
+    });
+
+    console.log('📊 Final maxQuestionsMap:', Array.from(map.entries()).map(([id, count]) => `${id}: ${count}`).join(', '));
+
+    return map;
+  }, [blockTest?.subjectTests]);
+
+  // ⭐ Простая функция для получения максимума из мемоизированной карты
+  const getMaxQuestionsForSubject = (subjectId: string): number => {
+    return maxQuestionsMap.get(subjectId) || 0;
   };
 
   useEffect(() => {
     if (isOpen && allSubjects.length > 0) {
-      console.log('🔍 GroupConfigModal: all subjects from system:', allSubjects.length);
-      
-      setLoading(true); // ⭐ Начинаем загрузку
+      setLoading(true);
       
       // Берём ВСЕ предметы из системы
       const subjectsWithAvg = allSubjects.map((subject: any) => {
@@ -107,7 +127,6 @@ export default function GroupConfigModal({
         }
       });
 
-      console.log('🔍 Subjects with avg:', subjectsWithAvg);
       setSubjects(subjectsWithAvg);
 
       // Вычисляем общее количество вопросов
@@ -126,9 +145,9 @@ export default function GroupConfigModal({
         setPointsConfig([{ from: 1, to: total, points: 3.1 }]);
       }
       
-      setLoading(false); // ⭐ Загрузка завершена
+      setLoading(false);
     }
-  }, [isOpen, studentConfigs, blockTest, allSubjects]);
+  }, [isOpen, studentConfigs, allSubjects, maxQuestionsMap]);
 
   useEffect(() => {
     if (isOpen) {
@@ -354,8 +373,6 @@ export default function GroupConfigModal({
               const subjectId = subject.subjectId?._id || subject.subjectId;
               const subjectName = subject.subjectId?.nameUzb || 'Fan';
               
-              const subjectInfo = allSubjects.find(s => s._id === subjectId);
-              
               // Проверяем, является ли предмет обязательным для студентов
               // Предмет считается обязательным, если он есть у ВСЕХ студентов
               const studentsWithSubject = studentConfigs.filter((config: any) => {
@@ -366,6 +383,7 @@ export default function GroupConfigModal({
               });
               const isMandatory = studentsWithSubject.length === students.length;
 
+              // ⭐ Получаем максимум из мемоизированной карты (без лишних вычислений)
               const realMaxQuestions = getMaxQuestionsForSubject(subjectId);
               
               // Если нет вопросов, показываем 0 и блокируем выбор

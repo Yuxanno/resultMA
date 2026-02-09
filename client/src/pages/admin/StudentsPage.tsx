@@ -810,7 +810,7 @@ export default function StudentsPage() {
                     type="number"
                     min="1"
                     max="11"
-                    value={formData.classNumber.toString()}
+                    value={(formData.classNumber ?? 7).toString()}
                     onChange={(e) => setFormData({ ...formData, classNumber: parseInt(e.target.value) || 7 })}
                     required
                   />
@@ -1078,6 +1078,11 @@ export default function StudentsPage() {
                         <Badge variant="default" size="sm">
                           {student.classNumber}-sinf
                         </Badge>
+                        {student.branchId && (
+                          <Badge variant="outline" size="sm">
+                            {student.branchId.name}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

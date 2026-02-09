@@ -9,14 +9,16 @@ interface ShuffleVariantsModalProps {
   isOpen: boolean;
   onClose: () => void;
   students: any[];
-  onShuffle: (selectedStudentIds: string[]) => void;
+  onShuffle: (selectedStudentIds: string[]) => Promise<void>;
+  loading?: boolean;
 }
 
 export default function ShuffleVariantsModal({
   isOpen,
   onClose,
   students,
-  onShuffle
+  onShuffle,
+  loading = false
 }: ShuffleVariantsModalProps) {
   const [selectedStudents, setSelectedStudents] = useState<string[]>(
     students.map(s => s._id)
@@ -43,11 +45,11 @@ export default function ShuffleVariantsModal({
     }
   };
 
-  const handleShuffle = () => {
+  const handleShuffle = async () => {
     if (!confirm(`${selectedStudents.length} ta o'quvchi uchun variantlarni aralashtirib berasizmi?\n\nBu amal:\n• Savollar tartibini o'zgartiradi\n• Javoblar tartibini o'zgartiradi\n• Yangi variant kodlari yaratiladi\n\nBu amalni qaytarib bo'lmaydi!`)) {
       return;
     }
-    onShuffle(selectedStudents);
+    await onShuffle(selectedStudents);
   };
 
   return (
@@ -124,16 +126,22 @@ export default function ShuffleVariantsModal({
 
         {/* Actions */}
         <div className="flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            className="flex-1"
+            disabled={loading}
+          >
             Bekor qilish
           </Button>
           <Button
             onClick={handleShuffle}
-            disabled={selectedStudents.length === 0}
+            disabled={selectedStudents.length === 0 || loading}
+            loading={loading}
             className="flex-1 bg-orange-600 hover:bg-orange-700"
           >
             <Shuffle className="w-4 h-4 mr-2" />
-            Aralashtirib berish ({selectedStudents.length})
+            {loading ? 'Aralashtirilmoqda...' : `Aralashtirib berish (${selectedStudents.length})`}
           </Button>
         </div>
       </div>

@@ -79,82 +79,88 @@ router.delete('/:id', authenticate, authorize(UserRole.SUPER_ADMIN), async (req:
   }
 });
 
-// Get branch statistics
-router.get('/:id/statistics', authenticate, cacheMiddleware(300), async (req, res) => {
+// Get branch statistics - OPTIMIZED
+router.get('/:id/statistics', authenticate, async (req, res) => {
   try {
     const branchId = req.params.id;
+    console.log('🔍 Fetching statistics for branch:', branchId);
 
-    // Run all queries in parallel
-    const [branch, studentsCount, teachersCount, groups, studentGroupCounts] = await Promise.all([
-      Branch.findById(branchId).lean(),
+    // Run all queries in parallel with optimized aggregation
+    const [branch, studentsCount, teachersCount, groupsWithStats] = await Promise.all([
+      Branch.findById(branchId).select('_id name location').lean(),
       Student.countDocuments({ branchId }),
       User.countDocuments({ branchId, role: UserRole.TEACHER, isActive: true }),
-      Group.find({ branchId }).select('_id name capacity').lean(),
-      StudentGroup.aggregate([
+      
+      // OPTIMIZED: Get all group data with student counts and average scores in ONE query
+      Group.aggregate([
+        {
+          $match: { branchId: new mongoose.Types.ObjectId(branchId) }
+        },
         {
           $lookup: {
-            from: 'groups',
-            localField: 'groupId',
-            foreignField: '_id',
-            as: 'group'
-          }
-        },
-        { $unwind: '$group' },
-        {
-          $match: {
-            'group.branchId': new mongoose.Types.ObjectId(branchId)
+            from: 'studentgroups',
+            localField: '_id',
+            foreignField: 'groupId',
+            as: 'studentGroups'
           }
         },
         {
-          $group: {
-            _id: '$groupId',
-            count: { $sum: 1 }
+          $addFields: {
+            studentsCount: { $size: '$studentGroups' },
+            studentIds: '$studentGroups.studentId'
           }
+        },
+        {
+          $lookup: {
+            from: 'testresults',
+            let: { studentIds: '$studentIds' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ['$studentId', '$$studentIds'] }
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  avgPercentage: { $avg: '$percentage' }
+                }
+              }
+            ],
+            as: 'testStats'
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            studentsCount: 1,
+            averageScore: {
+              $cond: {
+                if: { $gt: [{ $size: '$testStats' }, 0] },
+                then: { $round: [{ $arrayElemAt: ['$testStats.avgPercentage', 0] }, 0] },
+                else: 0
+              }
+            }
+          }
+        },
+        {
+          $sort: { name: 1 }
         }
       ])
     ]);
 
     if (!branch) {
+      console.log('❌ Branch not found:', branchId);
       return res.status(404).json({ message: 'Filial topilmadi' });
     }
 
-    // Create maps for quick lookup
-    const studentCountMap = new Map(
-      studentGroupCounts.map(item => [item._id.toString(), item.count])
-    );
+    console.log('✅ Statistics fetched successfully');
+    console.log('📊 Groups:', groupsWithStats.length);
+    console.log('👥 Students:', studentsCount);
+    console.log('👨‍🏫 Teachers:', teachersCount);
 
-    // Calculate average percentage for each group
-    const groupsWithCounts = await Promise.all(
-      groups.map(async (group) => {
-        const groupId = group._id.toString();
-        
-        // Get students in this group
-        const studentGroups = await StudentGroup.find({ groupId: group._id }).select('studentId').lean();
-        const studentIds = studentGroups.map(sg => sg.studentId);
-        
-        // Get test results for these students
-        let avgPercentage = 0;
-        if (studentIds.length > 0) {
-          const testResults = await TestResult.find({ 
-            studentId: { $in: studentIds } 
-          }).select('percentage').lean();
-          
-          if (testResults.length > 0) {
-            const totalPercentage = testResults.reduce((sum, result) => sum + result.percentage, 0);
-            avgPercentage = Math.round(totalPercentage / testResults.length);
-          }
-        }
-        
-        return {
-          _id: group._id,
-          name: group.name,
-          capacity: group.capacity || 20,
-          studentsCount: studentCountMap.get(groupId) || 0,
-          averageScore: avgPercentage
-        };
-      })
-    );
-
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       branch: {
         _id: branch._id,
@@ -163,11 +169,11 @@ router.get('/:id/statistics', authenticate, cacheMiddleware(300), async (req, re
       },
       studentsCount,
       teachersCount,
-      groupsCount: groups.length,
-      groups: groupsWithCounts
+      groupsCount: groupsWithStats.length,
+      groups: groupsWithStats
     });
   } catch (error: any) {
-    console.error('Error fetching branch statistics:', error);
+    console.error('❌ Error fetching branch statistics:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

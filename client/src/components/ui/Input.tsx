@@ -1,16 +1,19 @@
 import { InputHTMLAttributes, forwardRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { Eye, EyeOff } from 'lucide-react';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   helperText?: string;
+  showPasswordToggle?: boolean;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, helperText, value, onChange, onBlur, min, max, ...props }, ref) => {
+  ({ className, type, label, error, helperText, value, onChange, onBlur, min, max, showPasswordToggle, ...props }, ref) => {
     const [internalValue, setInternalValue] = useState(value);
     const [lastValidValue, setLastValidValue] = useState(value);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Sync internal value with external value
     useEffect(() => {
@@ -84,27 +87,44 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
-        <input
-          type={type}
-          value={internalValue}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          min={min}
-          max={max}
-          className={cn(
-            'flex h-10 w-full rounded-full border border-gray-300 bg-white px-3 py-2 text-sm',
-            'placeholder:text-gray-400',
-            'transition-colors duration-150',
-            'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
-            'hover:border-gray-400',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
-            'file:border-0 file:bg-transparent file:text-sm file:font-medium',
-            error && 'border-red-300 focus:ring-red-500 focus:border-red-500',
-            className
+        <div className="relative">
+          <input
+            type={type === 'password' && showPasswordToggle ? (showPassword ? 'text' : 'password') : type}
+            value={internalValue}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            min={min}
+            max={max}
+            className={cn(
+              'flex h-10 w-full rounded-full border border-gray-300 bg-white px-3 py-2 text-sm',
+              'placeholder:text-gray-400',
+              'transition-colors duration-150',
+              'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
+              'hover:border-gray-400',
+              'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
+              'file:border-0 file:bg-transparent file:text-sm file:font-medium',
+              error && 'border-red-300 focus:ring-red-500 focus:border-red-500',
+              showPasswordToggle && type === 'password' && 'pr-10',
+              className
+            )}
+            ref={ref}
+            {...props}
+          />
+          {showPasswordToggle && type === 'password' && (
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
           )}
-          ref={ref}
-          {...props}
-        />
+        </div>
         {helperText && !error && (
           <p className="mt-1.5 text-xs text-gray-500">{helperText}</p>
         )}

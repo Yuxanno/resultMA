@@ -307,6 +307,7 @@ export default function UsersPage() {
               <Input
                 label="Parol"
                 type="password"
+                showPasswordToggle={true}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required={!editingUser}
