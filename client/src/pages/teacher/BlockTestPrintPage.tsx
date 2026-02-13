@@ -4,6 +4,7 @@ import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import MathText from '@/components/MathText';
 import { Printer, ArrowLeft, Settings } from 'lucide-react';
+import { convertTiptapJsonToText } from '@/lib/latexUtils';
 
 export default function BlockTestPrintPage() {
   const { id, type } = useParams<{ id: string; type: string }>();
@@ -137,24 +138,33 @@ export default function BlockTestPrintPage() {
               
               {/* Вопросы предмета */}
               <div className={`space-y-6 ${columnsCount === 2 ? 'columns-2 gap-4' : ''}`}>
-                {questions.map((question: any, qIndex: number) => (
-                  <div key={qIndex} className="border-b pb-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <span className="font-bold text-lg">{qIndex + 1}.</span>
-                      <div className="flex-1">
-                        <MathText text={question.text} />
+                {questions.map((question: any, qIndex: number) => {
+                  const questionText = convertTiptapJsonToText(question.text);
+                  
+                  return (
+                    <div key={qIndex} className="border-b pb-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <span className="font-bold text-lg">{qIndex + 1}.</span>
+                        <div className="flex-1">
+                          <MathText text={questionText} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="ml-6">
-                      {question.variants?.map((variant: any, varIndex: number) => (
-                        <span key={varIndex}>
-                          <span className="font-semibold">{variant.letter}) </span>
-                          <MathText text={variant.text} />
-                          {varIndex < question.variants.length - 1 && <span className="mx-2"></span>}
-                        </span>
+                      <div className="ml-6">
+                        {question.variants?.map((variant: any, varIndex: number) => {
+                          const variantText = convertTiptapJsonToText(variant.text);
+                          return (
+                            <span key={varIndex}>
+                              <span className="font-semibold">{variant.letter}) </span>
+                              <MathText text={variantText} />
+                              {varIndex < question.variants.length - 1 && <span className="mx-2"></span>}
+                            </span>
+                          );
+                        })}
                       ))}
                     </div>
                   </div>
+                );
+              })}
                 ))}
               </div>
               
@@ -185,21 +195,28 @@ export default function BlockTestPrintPage() {
             
             {/* Вопросы предмета */}
             <div className={`space-y-6 ${columnsCount === 2 ? 'columns-2 gap-4' : ''}`}>
-              {subjectTest.questions?.map((question: any, qIndex: number) => (
-                <div key={qIndex} className="border-b pb-4">
-                  <div className="flex items-start gap-3 mb-3">
-                    <span className="font-bold text-lg">{qIndex + 1}.</span>
-                    <div className="flex-1">
-                      <MathText text={question.text} />
+              {subjectTest.questions?.map((question: any, qIndex: number) => {
+                const questionText = convertTiptapJsonToText(question.text);
+                
+                return (
+                  <div key={qIndex} className="border-b pb-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <span className="font-bold text-lg">{qIndex + 1}.</span>
+                      <div className="flex-1">
+                        <MathText text={questionText} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="ml-6">
-                    {question.variants?.map((variant: any, varIndex: number) => (
-                      <span key={varIndex}>
-                        <span className="font-semibold">{variant.letter}) </span>
-                        <MathText text={variant.text} />
-                        {varIndex < question.variants.length - 1 && <span className="mx-2"></span>}
-                      </span>
+                    <div className="ml-6">
+                      {question.variants?.map((variant: any, varIndex: number) => {
+                        const variantText = convertTiptapJsonToText(variant.text);
+                        return (
+                          <span key={varIndex}>
+                            <span className="font-semibold">{variant.letter}) </span>
+                            <MathText text={variantText} />
+                            {varIndex < question.variants.length - 1 && <span className="mx-2"></span>}
+                          </span>
+                        );
+                      })}
                     ))}
                   </div>
                 </div>

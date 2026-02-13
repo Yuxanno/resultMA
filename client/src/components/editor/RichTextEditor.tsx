@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { FormulaExtension } from './FormulaExtension';
 import { useEffect, useState, useMemo } from 'react';
+import { hasMathML, convertMathMLToLatex } from '@/lib/mathmlUtils';
 import './editor.css';
 
 interface RichTextEditorProps {
@@ -40,6 +41,50 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Matnni 
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[80px] p-3',
       },
+      // Обработка вставки из буфера обмена
+      handlePaste: (view, event) => {
+        const clipboardData = event.clipboardData;
+        if (!clipboardData) return false;
+
+        // Получаем текст из буфера обмена
+        const text = clipboardData.getData('text/plain');
+        const html = clipboardData.getData('text/html');
+
+        console.log('📋 Paste detected');
+
+        // Проверяем наличие MathML в HTML или тексте
+        if (hasMathML(html) || hasMathML(text)) {
+          console.log('🔄 MathML detected in clipboard!');
+          
+          // Конвертируем MathML в LaTeX
+          const sourceText = hasMathML(html) ? html : text;
+          const convertedText = convertMathMLToLatex(sourceText);
+          
+          // Вставляем конвертированный текст
+          if (convertedText) {
+            event.preventDefault();
+            
+            // Парсим LaTeX формулы и вставляем их
+            const parts = convertedText.split(/(\\\([^)]*\\\))/g);
+            
+            parts.forEach((part) => {
+              if (part.startsWith('\\(') && part.endsWith('\\)')) {
+                // Это формула - извлекаем LaTeX
+                const latex = part.slice(2, -2);
+                editor?.chain().focus().setFormula(latex).run();
+              } else if (part.trim()) {
+                // Это обычный текст
+                editor?.chain().focus().insertContent(part).run();
+              }
+            });
+            
+            return true;
+          }
+        }
+
+        // Если не MathML, используем стандартную обработку
+        return false;
+      },
     },
     immediatelyRender: false,
     editable: true,
@@ -68,7 +113,52 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Matnni 
             // Не JSON, продолжаем как HTML
           }
           
-          editor.commands.setContent(value, { emitUpdate: false });
+          // Парсим $...$ формулы и конвертируем их в formula nodes
+          let processedValue = value;
+          
+          // Заменяем $...$ на formula nodes
+          const formulaRegex = /\$([^$]+)\$/g;
+          if (formulaRegex.test(value)) {
+            console.log('🔍 [RichTextEditor] Found $...$ formulas in value, converting...');
+            
+            // Разбиваем текст на части
+            const parts: Array<{ type: 'text' | 'formula', content: string }> = [];
+            let lastIndex = 0;
+            let match;
+            
+            const regex = /\$([^$]+)\$/g;
+            while ((match = regex.exec(value)) !== null) {
+              // Добавляем текст перед формулой
+              if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: value.substring(lastIndex, match.index) });
+              }
+              
+              // Добавляем формулу
+              parts.push({ type: 'formula', content: match[1] });
+              lastIndex = regex.lastIndex;
+            }
+            
+            // Добавляем оставшийся текст
+            if (lastIndex < value.length) {
+              parts.push({ type: 'text', content: value.substring(lastIndex) });
+            }
+            
+            // Очищаем редактор и вставляем части
+            editor.commands.clearContent({ emitUpdate: false });
+            
+            parts.forEach(part => {
+              if (part.type === 'formula') {
+                editor.commands.setFormula(part.content);
+              } else if (part.content.trim()) {
+                editor.commands.insertContent(part.content, { updateSelection: false });
+              }
+            });
+            
+            console.log('✅ [RichTextEditor] Converted $...$ formulas to formula nodes');
+            return;
+          }
+          
+          editor.commands.setContent(processedValue, { emitUpdate: false });
         }
       } catch (err) {
         console.error('Error setting editor content:', err);
@@ -79,8 +169,11 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Matnni 
 
   useEffect(() => {
     const handleOpenFormulaEditor = () => {
-      if (editor) {
+      if (editor && editor.isFocused) {
+        console.log('✅ [RichTextEditor] Editor is focused, inserting formula');
         editor.chain().focus().setFormula('').run();
+      } else {
+        console.log('⏭️ [RichTextEditor] Editor not focused, skipping formula insertion');
       }
     };
 
@@ -199,16 +292,6 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Matnni 
     <div className={`relative ${className}`}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border-b bg-gray-50/50 rounded-t-lg flex-wrap">
-        <button
-          type="button"
-          onClick={insertFormula}
-          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 hover:border-gray-400 transition-all flex-shrink-0"
-          title="Formula qo'shish (Alt+=)"
-        >
-          <span className="text-sm sm:text-base">𝑓(x)</span>
-          <span className="text-gray-500 hidden sm:inline">Alt+=</span>
-        </button>
-
         <div className="flex-1 min-w-0"></div>
 
         <div className="text-xs text-gray-400 hidden md:block">

@@ -44,10 +44,10 @@ export const useCreateBlockTest = () => {
       const { data } = await api.post('/block-tests', blockTestData);
       return data;
     },
-    onSuccess: () => {
-      console.log('✅ Block test created, invalidating cache...');
-      // Инвалидируем ВСЕ запросы связанные с блок-тестами
-      queryClient.invalidateQueries({ queryKey: blockTestKeys.all });
+    onSuccess: async () => {
+      console.log('✅ Block test created, refetching data...');
+      await queryClient.refetchQueries({ queryKey: blockTestKeys.all });
+      console.log('✅ Block tests list refreshed');
     },
   });
 };
@@ -61,9 +61,10 @@ export const useImportBlockTest = () => {
       const { data } = await api.post('/block-tests/import/confirm', importData);
       return data;
     },
-    onSuccess: () => {
-      console.log('✅ Block test imported, invalidating cache...');
-      queryClient.invalidateQueries({ queryKey: blockTestKeys.all });
+    onSuccess: async () => {
+      console.log('✅ Block test imported, refetching data...');
+      await queryClient.refetchQueries({ queryKey: blockTestKeys.all });
+      console.log('✅ Block tests list refreshed');
     },
   });
 };
@@ -78,9 +79,10 @@ export const useDeleteBlockTest = () => {
       await api.delete(`/block-tests/${id}`);
       console.log('✅ Block test deleted successfully');
     },
-    onSuccess: () => {
-      console.log('🔄 Invalidating block tests cache...');
-      queryClient.invalidateQueries({ queryKey: blockTestKeys.all });
+    onSuccess: async () => {
+      console.log('🔄 Refetching block tests...');
+      await queryClient.refetchQueries({ queryKey: blockTestKeys.all });
+      console.log('✅ Block tests list refreshed');
     },
   });
 };

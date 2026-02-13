@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import MathText from '@/components/MathText';
-import { Printer, ArrowLeft, Settings, Download } from 'lucide-react';
+import { Printer, Settings } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import AnswerSheet from '@/components/AnswerSheet';
-import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, PageBreak, ImageRun } from 'docx';
-import { saveAs } from 'file-saver';
+import { convertTiptapJsonToText } from '@/lib/latexUtils';
 
 export default function TestPrintPage() {
   const { id, type } = useParams<{ id: string; type: string }>();
-  const navigate = useNavigate();
   const [test, setTest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedStudents, setSelectedStudents] = useState<any[]>([]);
@@ -22,7 +20,7 @@ export default function TestPrintPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [fontSize, setFontSize] = useState(12);
   const [spacing, setSpacing] = useState('normal');
-  const [showSubjectLabels, setShowSubjectLabels] = useState(true);
+  const [showSubject, setShowSubject] = useState(false);
 
   useEffect(() => {
     fetchTest();
@@ -33,19 +31,28 @@ export default function TestPrintPage() {
   const loadSelectedStudents = () => {
     const stored = localStorage.getItem('selectedStudents');
     if (stored) {
-      console.log('📋 Loading selected students from localStorage:', stored);
       setSelectedStudents(JSON.parse(stored));
-      // НЕ удаляем из localStorage сразу - оставляем для перезагрузки страницы
-      // localStorage.removeItem('selectedStudents');
-    } else {
-      console.log('⚠️ No selected students found in localStorage');
     }
   };
 
   const fetchVariants = async () => {
     try {
-      const { data } = await api.get(`/student-variants/test/${id}`);
+      const { data } = await api.get(`/student-variants/test/${id}`, {
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
       setVariants(data);
+      console.log('📦 CLIENT: Loaded', data.length, 'variants');
+      if (data.length > 0) {
+        console.log('📦 CLIENT: Sample variant:', {
+          variantCode: data[0].variantCode,
+          hasShuffledQuestions: !!data[0].shuffledQuestions,
+          shuffledQuestionsCount: data[0].shuffledQuestions?.length,
+          firstQuestionVariants: data[0].shuffledQuestions?.[0]?.variants?.map((v: any) => 
+            `${v.letter}: ${v.text?.substring(0, 20)}`
+          ),
+          firstQuestionCorrect: data[0].shuffledQuestions?.[0]?.correctAnswer
+        });
+      }
     } catch (error) {
       console.error('Error fetching variants:', error);
     }
@@ -66,275 +73,11 @@ export default function TestPrintPage() {
     window.print();
   };
 
-  // Spacing classes based on selected spacing
   const spacingClasses = {
-    compact: {
-      container: 'space-y-1',
-      question: 'mb-1 pb-1',
-      header: 'mb-2 pb-2',
-      questions: 'space-y-1'
-    },
-    normal: {
-      container: 'space-y-2',
-      question: 'mb-2 pb-2',
-      header: 'mb-3 pb-3',
-      questions: 'space-y-2'
-    },
-    relaxed: {
-      container: 'space-y-4',
-      question: 'mb-3 pb-3',
-      header: 'mb-4 pb-4',
-      questions: 'space-y-3'
-    }
+    compact: { container: 'space-y-1', question: 'mb-1 pb-1', header: 'mb-2 pb-2', questions: 'space-y-1' },
+    normal: { container: 'space-y-2', question: 'mb-2 pb-2', header: 'mb-3 pb-3', questions: 'space-y-2' },
+    relaxed: { container: 'space-y-4', question: 'mb-3 pb-3', header: 'mb-4 pb-4', questions: 'space-y-3' }
   }[spacing];
-
-  // Функция для очистки текста от HTML и LaTeX
-  const cleanText = (text: string): string => {
-    if (!text) return '';
-    
-    // Удаляем HTML теги
-    let cleaned = text.replace(/<[^>]*>/g, '');
-    
-    // Удаляем LaTeX формулы (оставляем содержимое)
-    cleaned = cleaned.replace(/\$\$([^$]+)\$\$/g, '$1');
-    cleaned = cleaned.replace(/\$([^$]+)\$/g, '$1');
-    
-    // Декодируем HTML entities
-    cleaned = cleaned.replace(/&nbsp;/g, ' ');
-    cleaned = cleaned.replace(/&lt;/g, '<');
-    cleaned = cleaned.replace(/&gt;/g, '>');
-    cleaned = cleaned.replace(/&amp;/g, '&');
-    cleaned = cleaned.replace(/&quot;/g, '"');
-    
-    return cleaned.trim();
-  };
-
-  // Функция для загрузки изображения и конвертации для Word
-  const fetchImageAsBase64 = async (imageUrl: string): Promise<{ data: Uint8Array; width: number; height: number } | null> => {
-    try {
-      // Создаем полный URL (НЕ используем api.get - он добавляет /api к пути!)
-      const fullUrl = imageUrl.startsWith('http') 
-        ? imageUrl 
-        : `${window.location.origin}${imageUrl}`;
-      
-      // Используем fetch напрямую (без api wrapper)
-      const response = await fetch(fullUrl);
-      
-      if (!response.ok) {
-        return null;
-      }
-      
-      const arrayBuffer = await response.arrayBuffer();
-      
-      // Создаем Uint8Array из arraybuffer
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
-      // Создаем blob для получения размеров
-      const blob = new Blob([uint8Array]);
-      const imageUrl_temp = URL.createObjectURL(blob);
-      
-      // Получаем размеры изображения
-      return new Promise((resolve) => {
-        const img = new Image();
-        
-        img.onload = () => {
-          // Ограничиваем размер изображения для Word (макс 400px ширина)
-          const maxWidth = 400;
-          let width = img.width;
-          let height = img.height;
-          
-          if (width > maxWidth) {
-            const ratio = maxWidth / width;
-            width = maxWidth;
-            height = Math.round(height * ratio);
-          }
-          
-          // Освобождаем память
-          URL.revokeObjectURL(imageUrl_temp);
-          
-          resolve({ data: uint8Array, width, height });
-        };
-        
-        img.onerror = () => {
-          URL.revokeObjectURL(imageUrl_temp);
-          resolve(null);
-        };
-        
-        img.src = imageUrl_temp;
-      });
-    } catch (error) {
-      console.error('❌ Error fetching image:', error);
-      return null;
-    }
-  };
-
-  const handleDownloadWord = async () => {
-    if (selectedStudents.length === 0) {
-      alert('O\'quvchilar tanlanmagan');
-      return;
-    }
-
-    try {
-      const sections: any[] = [];
-
-      for (const student of selectedStudents) {
-        const variant = variants.find(v => v.studentId?._id === student._id);
-        const variantCode = variant?.variantCode || '';
-        
-        // Используем shuffledQuestions если они есть, иначе оригинальные вопросы
-        const questionsToRender = variant?.shuffledQuestions && variant.shuffledQuestions.length > 0
-          ? variant.shuffledQuestions
-          : test.questions;
-
-        // Заголовок для каждого студента
-        sections.push(
-          new Paragraph({
-            text: test.subjectId?.nameUzb || test.subjectId || 'Test',
-            heading: HeadingLevel.HEADING_1,
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 200 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: student.fullName,
-                bold: true,
-                size: 28
-              })
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 100 }
-          }),
-          new Paragraph({
-            text: `Variant: ${variantCode}`,
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 100 }
-          }),
-          new Paragraph({
-            text: `${test.classNumber || 10}-sinf | ${test.groupId?.nameUzb || ''}`,
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 400 }
-          })
-        );
-
-        // Добавляем вопросы
-        for (const [index, question] of questionsToRender.entries()) {
-          // Текст вопроса
-          const questionText = cleanText(question.text);
-          sections.push(
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: `${index + 1}. `,
-                  bold: true
-                }),
-                new TextRun({
-                  text: questionText
-                })
-              ],
-              spacing: { before: 200, after: 100 }
-            })
-          );
-
-          // Изображение вопроса
-          if (question.imageUrl) {
-            const imageData = await fetchImageAsBase64(question.imageUrl);
-            if (imageData) {
-              try {
-                sections.push(
-                  new Paragraph({
-                    children: [
-                      new ImageRun({
-                        type: 'png',
-                        data: imageData.data,
-                        transformation: {
-                          width: imageData.width,
-                          height: imageData.height
-                        }
-                      })
-                    ],
-                    spacing: { before: 100, after: 100 },
-                    indent: { left: 400 }
-                  })
-                );
-              } catch (err) {
-                // Skip image on error
-              }
-            }
-          }
-
-          // Варианты ответов
-          if (question.variants && question.variants.length > 0) {
-            for (const qVariant of question.variants) {
-              const optionText = cleanText(qVariant.text);
-              
-              // Текст варианта
-              sections.push(
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `${qVariant.letter}) `,
-                      bold: true
-                    }),
-                    new TextRun({
-                      text: optionText
-                    })
-                  ],
-                  spacing: { after: 50 },
-                  indent: { left: 400 }
-                })
-              );
-
-              // Изображение варианта
-              if (qVariant.imageUrl) {
-                const variantImageData = await fetchImageAsBase64(qVariant.imageUrl);
-                if (variantImageData) {
-                  try {
-                    sections.push(
-                      new Paragraph({
-                        children: [
-                          new ImageRun({
-                            type: 'png',
-                            data: variantImageData.data,
-                            transformation: {
-                              width: variantImageData.width,
-                              height: variantImageData.height
-                            }
-                          })
-                        ],
-                        spacing: { before: 50, after: 50 },
-                        indent: { left: 600 }
-                      })
-                    );
-                  } catch (err) {
-                    // Skip image on error
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // Разрыв страницы между студентами
-        if (student !== selectedStudents[selectedStudents.length - 1]) {
-          sections.push(new Paragraph({ children: [new PageBreak()] }));
-        }
-      }
-
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: sections
-        }]
-      });
-
-      const blob = await Packer.toBlob(doc);
-      const fileName = `${test.subjectId?.nameUzb || 'test'}-${test.classNumber || 10}-sinf.docx`;
-      saveAs(blob, fileName);
-    } catch (error) {
-      alert('Word faylini yaratishda xatolik yuz berdi');
-    }
-  };
 
   if (loading) {
     return (
@@ -357,96 +100,84 @@ export default function TestPrintPage() {
       return <div className="text-center text-gray-500 py-12">O'quvchilar tanlanmagan</div>;
     }
 
-    // Группируем студентов по страницам
     const pages = [];
     for (let i = 0; i < selectedStudents.length; i += testsPerPage) {
       pages.push(selectedStudents.slice(i, i + testsPerPage));
     }
 
     return (
-      <div style={{ fontSize: `${fontSize}px` }}>
+      <div className="max-w-5xl mx-auto px-4 print:px-0 print:max-w-full" style={{ fontSize: `${fontSize}px` }}>
         {pages.map((studentsOnPage, pageIndex) => (
           <div key={pageIndex} className="page-break mb-8">
             <div className={`grid gap-6 ${testsPerPage === 2 ? 'grid-cols-2' : testsPerPage === 4 ? 'grid-cols-2' : ''}`}>
-              {studentsOnPage.map((student, studentIndex) => {
+              {studentsOnPage.map((student) => {
                 const variant = variants.find(v => v.studentId?._id === student._id);
                 const variantCode = variant?.variantCode || '';
-                
-                // Используем shuffledQuestions если они есть, иначе оригинальные вопросы
                 const questionsToRender = variant?.shuffledQuestions && variant.shuffledQuestions.length > 0
                   ? variant.shuffledQuestions
                   : test.questions;
-                
+
+                console.log(`🎨 RENDER: Student ${student.fullName}:`, {
+                  hasVariant: !!variant,
+                  variantCode,
+                  hasShuffledQuestions: !!variant?.shuffledQuestions,
+                  questionsCount: questionsToRender?.length,
+                  firstQuestionVariants: questionsToRender?.[0]?.variants?.map((v: any) => 
+                    `${v.letter}: ${v.text?.substring(0, 20)}`
+                  )
+                });
+
                 return (
                   <div key={student._id} className={testsPerPage > 1 ? 'border-2 border-gray-300 p-3' : ''}>
-                    {/* Header */}
                     <div className={`flex justify-between items-start ${spacingClasses.header}`}>
                       <div className={testsPerPage > 1 ? 'text-sm' : ''}>
                         <h2 className={`font-bold ${testsPerPage > 1 ? 'text-base' : ''}`} style={{ fontSize: testsPerPage > 1 ? `${fontSize}px` : `${fontSize + 4}px` }}>
                           {student.fullName}
                         </h2>
                         <p style={{ fontSize: `${fontSize - 2}px` }}>Variant: {variantCode}</p>
-                        {showSubjectLabels && (
+                        {showSubject && (
                           <p style={{ fontSize: `${fontSize - 2}px` }}>
                             {test.subjectId?.nameUzb || test.subjectId || 'Test'} {test.classNumber || 10}{test.groupId?.nameUzb?.charAt(0) || 'A'}
                           </p>
                         )}
                       </div>
                       <div className="flex-shrink-0">
-                        <QRCodeSVG 
-                          value={variantCode}
-                          size={testsPerPage > 1 ? 60 : 100}
-                          level="H"
-                          includeMargin={false}
-                          style={{ margin: 0 }}
-                        />
+                        <QRCodeSVG value={variantCode} size={testsPerPage > 1 ? 60 : 100} level="H" />
                       </div>
                     </div>
 
-                    <hr className="border-t-2 border-gray-800" style={{ marginBottom: spacingClasses.header.includes('mb-2') ? '0.5rem' : spacingClasses.header.includes('mb-3') ? '0.75rem' : '1rem' }} />
+                    <hr className="border-t-2 border-gray-800 mb-3" />
 
-                    {/* Questions */}
-                    <div className={columnsCount === 2 ? 'columns-2 gap-4' : ''} style={{ columnGap: columnsCount === 2 ? '1rem' : '0' }}>
+                    <div className={columnsCount === 2 ? 'columns-2 gap-4' : ''}>
                       <div className={spacingClasses.questions}>
-                        {questionsToRender?.map((question: any, index: number) => (
-                          <div key={index} className={`page-break-inside-avoid ${spacingClasses.question}`}>
-                            <div className="mb-1">
-                              <span className="font-bold">{index + 1}. </span>
-                              <span>
-                                <MathText text={question.text} />
-                              </span>
-                            </div>
-                            {question.imageUrl && (
-                              <div className="my-2 ml-6 print-image-container">
-                                <img 
-                                  src={question.imageUrl} 
-                                  alt="Question" 
-                                  className="max-w-full h-auto print-image"
-                                  style={{ 
-                                    maxHeight: testsPerPage === 1 ? '200px' : '150px', 
-                                    objectFit: 'contain',
-                                    display: 'block'
-                                  }}
-                                  onLoad={(e) => {
-                                    // Force image to be visible in print
-                                    (e.target as HTMLImageElement).style.opacity = '1';
-                                  }}
-                                />
+                        {questionsToRender?.map((question: any, index: number) => {
+                          const questionText = convertTiptapJsonToText(question.text);
+
+                          return (
+                            <div key={index} className={`page-break-inside-avoid ${spacingClasses.question}`}>
+                              <div className="mb-1">
+                                <span className="font-bold">{index + 1}. </span>
+                                <span><MathText text={questionText} /></span>
                               </div>
-                            )}
-                            <div className={testsPerPage > 1 ? 'ml-3' : 'ml-6'}>
-                              {question.variants?.map((qVariant: any, vIdx: number) => (
-                                <span key={qVariant.letter}>
-                                  <span className="font-semibold">{qVariant.letter}) </span>
-                                  <span>
-                                    <MathText text={qVariant.text} />
-                                  </span>
-                                  {vIdx < question.variants.length - 1 && <span className="mx-3"></span>}
-                                </span>
-                              ))}
+                              {question.imageUrl && (
+                                <div className="my-2 ml-6">
+                                  <img src={question.imageUrl} alt="Question" className="max-w-full h-auto" style={{ maxHeight: testsPerPage === 1 ? '200px' : '150px', objectFit: 'contain' }} />
+                                </div>
+                              )}
+                              <div className={testsPerPage > 1 ? 'ml-3' : 'ml-6'}>
+                                {question.variants?.map((qVariant: any) => {
+                                  const variantText = convertTiptapJsonToText(qVariant.text);
+                                  return (
+                                    <span key={qVariant.letter} className="mr-3">
+                                      <span className="font-semibold">{qVariant.letter}) </span>
+                                      <MathText text={variantText} />
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -466,15 +197,13 @@ export default function TestPrintPage() {
 
     return (
       <div>
-        {selectedStudents.map((student, studentIndex) => {
+        {selectedStudents.map((student) => {
           const variant = variants.find(v => v.studentId?._id === student._id);
           const variantCode = variant?.variantCode || '';
-          
-          // Используем shuffledQuestions если они есть, иначе оригинальные вопросы
           const questionsToRender = variant?.shuffledQuestions && variant.shuffledQuestions.length > 0
             ? variant.shuffledQuestions
             : test.questions;
-          
+
           return (
             <div key={student._id} className="page-break mb-8">
               <div className="flex justify-between items-start mb-6">
@@ -483,19 +212,9 @@ export default function TestPrintPage() {
                   <p className="text-lg">{student.fullName}</p>
                   <p className="text-sm">Variant: {variantCode}</p>
                 </div>
-                <div className="flex-shrink-0">
-                  <QRCodeSVG 
-                    value={variantCode}
-                    size={100}
-                    level="H"
-                    includeMargin={false}
-                    style={{ margin: 0 }}
-                  />
-                </div>
+                <QRCodeSVG value={variantCode} size={100} level="H" />
               </div>
-
               <hr className="border-t-2 border-gray-800 mb-4" />
-
               <div>
                 {questionsToRender?.map((question: any, index: number) => (
                   <div key={index} className="mb-1">
@@ -516,7 +235,6 @@ export default function TestPrintPage() {
       return <div className="text-center text-gray-500 py-12">O'quvchilar tanlanmagan</div>;
     }
 
-    // Группируем варианты по страницам
     const pages = [];
     for (let i = 0; i < selectedStudents.length; i += sheetsPerPage) {
       pages.push(selectedStudents.slice(i, i + sheetsPerPage));
@@ -525,51 +243,37 @@ export default function TestPrintPage() {
     return (
       <div>
         {pages.map((studentsOnPage, pageIndex) => (
-          <div key={pageIndex} className="page-break" style={{ 
-            width: '210mm', 
-            height: '297mm',
+          <div key={pageIndex} className="page-break" style={{
+            width: sheetsPerPage === 1 ? '50%' : '100%',
             margin: '0 auto',
-            position: 'relative',
-            padding: '0',
-            backgroundColor: '#ffffff',
             display: sheetsPerPage === 1 ? 'block' : 'grid',
-            gridTemplateColumns: sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
-            gridTemplateRows: sheetsPerPage === 2 ? '1fr 1fr' : sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
-            gap: '0'
+            gridTemplateColumns: sheetsPerPage === 2 ? '1fr 1fr' : sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
+            gridTemplateRows: sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
+            gap: sheetsPerPage > 1 ? '10mm' : '0'
           }}>
-            {studentsOnPage.map((student, idx) => {
+            {studentsOnPage.map((student) => {
               const variant = variants.find(v => v.studentId?._id === student._id);
-              const variantCode = variant?.variantCode || variant?.qrPayload || '';
-              
+              const variantCode = variant?.variantCode || '';
+              const questionsToRender = variant?.shuffledQuestions && variant.shuffledQuestions.length > 0
+                ? variant.shuffledQuestions
+                : test.questions;
+
               return (
-                <div 
-                  key={student._id}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'stretch',
-                    justifyContent: 'stretch'
-                  }}
-                >
+                <div key={student._id}>
                   <AnswerSheet
                     student={{
                       fullName: student.fullName,
                       variantCode: variantCode
                     }}
                     test={{
-                      name: test.name,
-                      subjectName: test.subjectId?.nameUzb || test.subjectId || 'Test',
+                      name: test.name || 'Test',
+                      subjectName: test.subjectId?.nameUzb || 'Test',
                       classNumber: test.classNumber || 10,
                       groupLetter: test.groupId?.nameUzb?.charAt(0) || 'A',
-                      groupName: test.groupId?.name || test.groupId?.nameUzb || ''
+                      groupName: test.groupId?.nameUzb
                     }}
-                    questions={test.questions.length}
+                    questions={questionsToRender?.length || 0}
                     qrData={variantCode}
-                    columns={columnsCount}
-                    compact={sheetsPerPage > 1}
                     sheetsPerPage={sheetsPerPage}
                   />
                 </div>
@@ -582,364 +286,114 @@ export default function TestPrintPage() {
   };
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50 print:bg-white print-view-mode">
+      <div className="no-print mb-6 p-4 flex gap-3 bg-white max-w-5xl mx-auto">
+        <Button variant="outline" onClick={() => setShowSettings(!showSettings)}>
+          <Settings className="w-4 h-4 mr-2" />
+          Sozlamalar
+        </Button>
+        <Button onClick={handlePrint}>
+          <Printer className="w-4 h-4 mr-2" />
+          Chop etish
+        </Button>
+      </div>
+
+      {showSettings && (type === 'sheets' || type === 'questions') && (
+        <div className="no-print fixed top-20 right-4 z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 w-72">
+          <h3 className="font-bold text-lg mb-4">Chop etish sozlamalari</h3>
+
+          {type === 'questions' && (
+            <>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Shrift o'lchami: {fontSize}px</label>
+                <input type="range" min="8" max="18" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="w-full" />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Oraliq</label>
+                <select value={spacing} onChange={(e) => setSpacing(e.target.value)} className="w-full p-2 border rounded">
+                  <option value="compact">Zich</option>
+                  <option value="normal">O'rtacha</option>
+                  <option value="relaxed">Keng</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Ustunlar soni</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setColumnsCount(1)} className={`flex-1 py-2 px-4 rounded border-2 ${columnsCount === 1 ? 'bg-blue-500 text-white' : 'bg-white'}`}>1</button>
+                  <button onClick={() => setColumnsCount(2)} className={`flex-1 py-2 px-4 rounded border-2 ${columnsCount === 2 ? 'bg-blue-500 text-white' : 'bg-white'}`}>2</button>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Bir sahifada testlar</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 4].map((count) => (
+                    <button key={count} onClick={() => setTestsPerPage(count)} className={`py-2 px-4 rounded border-2 ${testsPerPage === count ? 'bg-blue-500 text-white' : 'bg-white'}`}>{count}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={showSubject}
+                    onChange={(e) => setShowSubject(e.target.checked)}
+                    className="w-4 h-4 accent-blue-500"
+                  />
+                  <span className="text-sm">Fan nomini ko'rsatish</span>
+                </label>
+              </div>
+            </>
+          )}
+
+          {type === 'sheets' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Bir sahifada varaqlar</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 4].map((count) => (
+                  <button key={count} onClick={() => setSheetsPerPage(count)} className={`py-2 px-4 rounded border-2 ${sheetsPerPage === count ? 'bg-blue-500 text-white' : 'bg-white'}`}>{count}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button onClick={() => setShowSettings(false)} className="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded">Yopish</button>
+        </div>
+      )}
+
+      {type === 'questions' && renderQuestions()}
+      {type === 'answers' && renderAnswers()}
+      {type === 'sheets' && renderSheets()}
+
       <style>{`
         @media print {
-          * {
-            box-sizing: border-box;
+          html, body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
           }
-          
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-          
           .no-print { display: none !important; }
-          
-          body { 
-            print-color-adjust: exact; 
-            -webkit-print-color-adjust: exact;
-            background: white !important;
-          }
-          
-          .page-break { 
-            page-break-after: always; 
-            page-break-inside: avoid;
-            break-after: page; 
-            break-inside: avoid;
-          }
-          
-          .page-break:last-child { 
-            page-break-after: auto !important; 
-            break-after: auto !important; 
-          }
-          
-          .page-break-inside-avoid { 
-            page-break-inside: avoid; 
-            break-inside: avoid; 
-          }
-          
-          * { 
-            background: white !important;
-          }
-          
-          /* КРИТИЧНО: Показываем изображения при печати */
-          .print-image-container {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-          }
-          
-          .print-image {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            max-width: 100% !important;
-            height: auto !important;
-          }
-          
-          img {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            page-break-inside: avoid;
-          }
-          
-          @page {
-            size: A4 portrait;
-            margin: 1cm;
-            padding: 0;
-          }
-          
-          /* Убираем все границы layout */
+          .page-break { page-break-after: always; page-break-inside: avoid; }
+          .page-break:last-child { page-break-after: auto !important; }
+          .page-break-inside-avoid { page-break-inside: avoid; }
+          @page { size: A4 portrait; margin: 1cm; }
           aside, nav, header, .sidebar { display: none !important; }
-          main { margin: 0 !important; padding: 0 !important; }
+          
+          /* Центрирование контента при печати */
+          .max-w-5xl {
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+          }
         }
-        @page {
-          margin: 1cm;
-          size: A4;
-        }
-        /* Скрываем сайдбар в режиме просмотра */
         body:has(.print-view-mode) aside,
         body:has(.print-view-mode) nav,
         body:has(.print-view-mode) header,
-        body:has(.print-view-mode) .sidebar {
-          display: none !important;
-        }
-        body:has(.print-view-mode) main {
-          margin: 0 !important;
-          padding: 0 !important;
-          max-width: 100% !important;
-        }
+        body:has(.print-view-mode) .sidebar { display: none !important; }
+        body:has(.print-view-mode) main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
       `}</style>
-      
-      <div className="min-h-screen bg-white print-view-mode">
-        <div className="no-print mb-6 p-4 flex gap-3 bg-white">
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Orqaga
-          </Button>
-          {(type === 'sheets' || type === 'questions') && (
-            <Button variant="outline" onClick={() => setShowSettings(!showSettings)}>
-              <Settings className="w-4 h-4 mr-2" />
-              Sozlamalar
-            </Button>
-          )}
-          {type === 'questions' && selectedStudents.length > 0 && (
-            <Button variant="outline" onClick={handleDownloadWord}>
-              <Download className="w-4 h-4 mr-2" />
-              Word yuklash
-            </Button>
-          )}
-          <Button onClick={handlePrint}>
-            <Printer className="w-4 h-4 mr-2" />
-            Chop etish
-          </Button>
-        </div>
-
-        {/* Settings Panel */}
-        {showSettings && (type === 'sheets' || type === 'questions') && (
-          <div className="no-print fixed top-20 right-4 z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 w-72">
-            <h3 className="font-bold text-lg mb-4">Chop etish sozlamalari</h3>
-            
-            {type === 'questions' && (
-              <>
-                {/* Font Size Slider */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    Shrift o'lchami: {fontSize}px
-                  </label>
-                  <input
-                    type="range"
-                    min="8"
-                    max="18"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Kichik (8px)</span>
-                    <span>Katta (18px)</span>
-                  </div>
-                </div>
-
-                {/* Spacing */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    Oraliq
-                  </label>
-                  <select
-                    value={spacing}
-                    onChange={(e) => setSpacing(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="compact">Zich</option>
-                    <option value="normal">O'rtacha</option>
-                    <option value="relaxed">Keng</option>
-                  </select>
-                </div>
-
-                {/* Columns */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    Ustunlar soni
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setColumnsCount(1)}
-                      className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                        columnsCount === 1
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      1 ustun
-                    </button>
-                    <button
-                      onClick={() => setColumnsCount(2)}
-                      className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                        columnsCount === 2
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      2 ustun
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Katta shrift uchun qulay
-                  </p>
-                </div>
-
-                {/* Show Subject Labels */}
-                <div className="mb-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={showSubjectLabels}
-                      onChange={(e) => setShowSubjectLabels(e.target.checked)}
-                      className="w-4 h-4 accent-blue-500"
-                    />
-                    <span className="text-sm">Fan nomlarini ko'rsatish</span>
-                  </label>
-                </div>
-                
-                <div className="mb-4 border-t pt-4">
-                  <label className="block text-sm font-medium mb-2">
-                    Bir sahifada testlar soni
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => setTestsPerPage(1)}
-                      className={`py-2 px-3 rounded border-2 font-medium transition-colors text-sm ${
-                        testsPerPage === 1
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      1 test
-                    </button>
-                    <button
-                      onClick={() => setTestsPerPage(2)}
-                      className={`py-2 px-3 rounded border-2 font-medium transition-colors text-sm ${
-                        testsPerPage === 2
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      2 test
-                    </button>
-                    <button
-                      onClick={() => setTestsPerPage(4)}
-                      className={`py-2 px-3 rounded border-2 font-medium transition-colors text-sm ${
-                        testsPerPage === 4
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      4 test
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {testsPerPage === 1 && 'Katta shrift, rasmlar bilan'}
-                    {testsPerPage === 2 && 'O\'rtacha shrift, 2 ustunda'}
-                    {testsPerPage === 4 && 'Kichik shrift, 2x2 grid'}
-                  </p>
-                </div>
-              </>
-            )}
-            
-            {type === 'sheets' && (
-              <>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-3">
-                    Sahifada varaqlar soni
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="sheetsPerPage"
-                        value="1"
-                        checked={sheetsPerPage === 1}
-                        onChange={() => setSheetsPerPage(1)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className="ml-3 flex-1">
-                        <span className="font-medium">1 varaq</span>
-                        <span className="block text-xs text-gray-500">Katta o'lcham, to'liq sahifa</span>
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="sheetsPerPage"
-                        value="2"
-                        checked={sheetsPerPage === 2}
-                        onChange={() => setSheetsPerPage(2)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className="ml-3 flex-1">
-                        <span className="font-medium">2 varaq</span>
-                        <span className="block text-xs text-gray-500">O'rtacha o'lcham, vertikal</span>
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="sheetsPerPage"
-                        value="4"
-                        checked={sheetsPerPage === 4}
-                        onChange={() => setSheetsPerPage(4)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className="ml-3 flex-1">
-                        <span className="font-medium">4 varaq</span>
-                        <span className="block text-xs text-gray-500">Kichik o'lcham, 2x2 grid</span>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    Ustunlar soni
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setColumnsCount(2)}
-                      className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                        columnsCount === 2
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      2 ustun
-                    </button>
-                    <button
-                      onClick={() => setColumnsCount(3)}
-                      className={`flex-1 py-2 px-4 rounded border-2 font-medium transition-colors ${
-                        columnsCount === 3
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      3 ustun
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {columnsCount === 2 ? '60 tagacha savol uchun qulay' : '60 dan ortiq savol uchun qulay'}
-                  </p>
-                </div>
-              </>
-            )}
-
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded font-medium"
-            >
-              Yopish
-            </button>
-          </div>
-        )}
-
-        <div className="max-w-4xl mx-auto bg-white">
-          {type === 'questions' && renderQuestions()}
-          {type === 'answers' && renderAnswers()}
-          {type === 'sheets' && renderSheets()}
-          {type === 'all' && (
-            <>
-              {renderQuestions()}
-              {renderAnswers()}
-              {renderSheets()}
-            </>
-          )}
-        </div>
-      </div>
-    </>
+    </div>
   );
 }

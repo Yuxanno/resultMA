@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { useToast } from '@/hooks/useToast';
 import { useTests, useDeleteTest } from '@/hooks/useTests';
+import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { Plus, Upload, FileText, Edit2, Trash2, Calendar, ArrowRight } from 'lucide-react';
 
 export default function TestsPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   
   // React Query hooks
   const { data: tests = [], isLoading: loading, refetch } = useTests('minimal');
@@ -19,14 +19,8 @@ export default function TestsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const { success, error } = useToast();
 
-  // Перезагружаем тесты при возврате на страницу с флагом refresh
-  useEffect(() => {
-    if (location.state?.refresh) {
-      refetch();
-      // Очищаем state чтобы не перезагружать при следующем рендере
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, refetch, navigate]);
+  // Автоматическое обновление при возврате на страницу
+  useRefreshOnReturn(refetch);
 
   const handleCardClick = (test: any) => {
     // Navigate to test detail page with proper route
@@ -71,81 +65,87 @@ export default function TestsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in pb-24 sm:pb-24">
-      {/* Header */}
-      <PageNavbar
-        title="Testlar"
-        description="Testlarni yaratish va boshqarish"
-        badge={`${filteredTests.length} ta`}
-        showSearch={tests.length > 0}
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder="Test nomi bo'yicha qidirish..."
-        showAddButton={true}
-        addButtonText="Test yaratish"
-        onAddClick={() => navigate('/teacher/tests/create')}
-        extraActions={
-          <Button 
-            variant="outline"
-            onClick={() => navigate('/teacher/tests/import')}
-            className="flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">Yuklash</span>
-          </Button>
-        }
-        gradient={true}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 pb-24 sm:pb-24">
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <PageNavbar
+          title="Testlar"
+          description="Testlarni yaratish va boshqarish"
+          badge={`${filteredTests.length} ta`}
+          showSearch={tests.length > 0}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Test nomi bo'yicha qidirish..."
+          showAddButton={true}
+          addButtonText="Test yaratish"
+          onAddClick={() => navigate('/teacher/tests/create')}
+          extraActions={
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/teacher/tests/import')}
+              className="flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Yuklash</span>
+            </Button>
+          }
+          gradient={true}
+        />
 
-      {/* Tests Grid */}
-      {filteredTests.length === 0 ? (
-        <Card className="border-2 border-slate-200/50">
-          <CardContent className="py-16 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <FileText className="w-10 h-10 text-slate-400" />
+        {/* Tests Grid */}
+        {filteredTests.length === 0 ? (
+          <div className="glass-card border border-white/20 p-16 text-center">
+            <div className="w-24 h-24 bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-green-500/30">
+              <FileText className="w-12 h-12 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3">
               {searchQuery ? 'Testlar topilmadi' : 'Testlar yo\'q'}
             </h3>
-            <p className="text-slate-600 mb-6 max-w-md mx-auto">
+            <p className="text-slate-600 mb-8 max-w-md mx-auto text-lg">
               {searchQuery 
                 ? 'Qidiruv bo\'yicha hech narsa topilmadi. Boshqa so\'z bilan qidiring.'
                 : 'Birinchi testni yaratish uchun yuqoridagi tugmani bosing'
               }
             </p>
             {!searchQuery && (
-              <Button size="lg" onClick={() => navigate('/teacher/tests/create')} className="bg-gradient-to-r from-green-500 to-emerald-600">
+              <Button 
+                size="lg" 
+                onClick={() => navigate('/teacher/tests/create')} 
+                className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 hover:shadow-xl hover:shadow-green-500/40 hover:scale-105 transition-all duration-300"
+              >
                 <Plus className="w-5 h-5 mr-2" />
                 Test yaratish
               </Button>
             )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-          {filteredTests.map((test, index) => (
-            <div
-              key={test._id}
-              style={{ animationDelay: `${index * 100}ms` }}
-              className="group animate-slide-in"
-            >
-              <Card 
-                className="h-full border-2 border-slate-200/50 hover:border-green-300 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/20 hover:-translate-y-2 overflow-hidden cursor-pointer"
-                onClick={() => handleCardClick(test)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+            {filteredTests.map((test, index) => (
+              <div
+                key={test._id}
+                style={{ animationDelay: `${index * 50}ms` }}
+                className="group animate-slide-in"
               >
-                <CardContent className="p-4 sm:p-5 lg:p-6 relative">
+                <div 
+                  className="glass-card h-full border border-white/20 hover:border-white/40 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/30 hover:-translate-y-2 overflow-hidden cursor-pointer p-6 relative"
+                  onClick={() => handleCardClick(test)}
+                >
+                  {/* Background Gradient Decoration */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400 to-emerald-500 opacity-10 rounded-full -mr-16 -mt-16 group-hover:opacity-20 transition-opacity"></div>
+                  
                   {/* Icon & Actions */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <FileText className="w-7 h-7 text-white" />
+                  <div className="flex items-start justify-between mb-5 relative z-10">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                      <FileText className="w-8 h-8 text-white" />
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEdit(test._id);
                         }}
-                        className="p-2 hover:bg-blue-100 rounded-xl transition-colors"
+                        className="p-2.5 hover:bg-blue-100/80 backdrop-blur-sm rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                        title="Tahrirlash"
                       >
                         <Edit2 className="w-4 h-4 text-slate-600" />
                       </button>
@@ -154,7 +154,8 @@ export default function TestsPage() {
                           e.stopPropagation();
                           handleDelete(test._id);
                         }}
-                        className="p-2 hover:bg-red-100 rounded-xl transition-colors"
+                        className="p-2.5 hover:bg-red-100/80 backdrop-blur-sm rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                        title="O'chirish"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </button>
@@ -162,7 +163,7 @@ export default function TestsPage() {
                   </div>
 
                   {/* Test Info */}
-                  <div className="mb-4">
+                  <div className="mb-4 relative z-10">
                     <h3 className="text-lg font-bold text-slate-900 mb-3 group-hover:text-green-600 transition-colors line-clamp-2">
                       {test.name}
                     </h3>
@@ -173,15 +174,15 @@ export default function TestsPage() {
                   </div>
 
                   {/* Action */}
-                  <div className="flex items-center justify-end text-slate-600 pt-4 border-t border-slate-200">
+                  <div className="flex items-center justify-end text-slate-600 pt-4 border-t border-slate-200/50 relative z-10">
                     <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          ))}
-        </div>
-      )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Upload, FileText, Image, X, CheckCircle, AlertCircle, Loader2, ArrowLeft, Trash2, ImagePlus } from 'lucide-react';
@@ -129,11 +129,24 @@ export default function ImportTestPage() {
           console.log('No conversion needed - plain text');
         }
         
+        // Конвертируем варианты с формулами
+        const convertedVariants = q.variants.map(v => {
+          const variantHasFormulas = v.text.includes('\\(') || v.text.includes('\\[');
+          if (variantHasFormulas) {
+            const variantJson = convertLatexToTiptapJson(v.text);
+            console.log(`Variant ${v.letter} converted:`, variantJson ? 'YES' : 'NO');
+            return {
+              ...v,
+              text: variantJson || v.text // Оставляем объект, не конвертируем в строку
+            };
+          }
+          return v;
+        });
+        
         return {
           ...q,
-          text: questionJson ? JSON.stringify(questionJson) : q.text,
-          // Варианты НЕ конвертируем - оставляем как обычный текст
-          // RichTextEditor сам обработает их
+          text: questionJson || q.text, // Оставляем объект, не конвертируем в строку
+          variants: convertedVariants
         };
       });
 
@@ -205,11 +218,32 @@ export default function ImportTestPage() {
       const selectedGroup = groups.find(g => g._id === selectedGroupId);
       
       // Преобразуем вопросы: image -> imageUrl для совместимости с моделью
-      const questionsFormatted = parsedQuestions.map(q => ({
-        ...q,
-        imageUrl: q.image, // Переименовываем image в imageUrl
-        image: undefined // Удаляем старое поле
-      }));
+      // И конвертируем JSON-объекты в строки для сохранения
+      const questionsFormatted = parsedQuestions.map(q => {
+        let textToSave = q.text;
+        
+        // Если text - это объект (TipTap JSON), конвертируем в строку
+        if (typeof q.text === 'object' && q.text !== null) {
+          textToSave = JSON.stringify(q.text);
+        }
+        
+        // Обрабатываем варианты
+        const variantsFormatted = (q.variants || []).map((v: any) => {
+          let variantText = v.text;
+          if (typeof v.text === 'object' && v.text !== null) {
+            variantText = JSON.stringify(v.text);
+          }
+          return { ...v, text: variantText };
+        });
+        
+        return {
+          ...q,
+          text: textToSave,
+          variants: variantsFormatted,
+          imageUrl: q.image,
+          image: undefined
+        };
+      });
       
       console.log('🔍 Questions with images:', questionsFormatted.filter(q => q.imageUrl).length);
       
@@ -327,6 +361,23 @@ export default function ImportTestPage() {
   const handleRemoveImage = (questionIndex: number) => {
     const updated = [...parsedQuestions];
     delete updated[questionIndex].image;
+    setParsedQuestions(updated);
+  };
+  const handleEditQuestion = (index: number, newText: string) => {
+    const updated = [...parsedQuestions];
+    updated[index].text = newText;
+    setParsedQuestions(updated);
+  };
+
+  const handleEditVariant = (qIndex: number, vIndex: number, newText: string) => {
+    const updated = [...parsedQuestions];
+    updated[qIndex].variants[vIndex].text = newText;
+    setParsedQuestions(updated);
+  };
+
+  const handleChangeCorrectAnswer = (qIndex: number, letter: string) => {
+    const updated = [...parsedQuestions];
+    updated[qIndex].correctAnswer = letter;
     setParsedQuestions(updated);
   };
 

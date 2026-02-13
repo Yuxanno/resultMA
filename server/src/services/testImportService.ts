@@ -3,6 +3,7 @@ import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
 import fs from 'fs/promises';
 import { GroqService } from './groqService';
+import { wordParser } from './wordParser';
 
 interface ParsedQuestion {
   text: string;
@@ -61,23 +62,29 @@ export class TestImportService {
   }
 
   /**
-   * Parse Word document
+   * Parse Word document using direct XML parser (no AI)
    */
   static async parseWord(filePath: string): Promise<ParsedQuestion[]> {
     try {
+      console.log('📄 [IMPORT] Using WordParser (no AI) for DOCX file');
+      
+      // Use direct XML parser for DOCX files
+      const questions = await wordParser.parseDocx(filePath);
+      
+      if (questions.length > 0) {
+        console.log(`✅ [IMPORT] WordParser extracted ${questions.length} questions`);
+        return questions;
+      }
+      
+      // Fallback: try mammoth + regex if WordParser fails
+      console.log('⚠️ [IMPORT] WordParser returned 0 questions, trying fallback...');
       const buffer = await fs.readFile(filePath);
       const result = await mammoth.extractRawText({ buffer });
       const text = result.value;
-
-      // Try AI parsing first
-      const aiQuestions = await GroqService.parseTestWithAI(text);
-      if (aiQuestions.length > 0) {
-        return GroqService.convertToOurFormat(aiQuestions);
-      }
-
-      // Fallback to regex parsing
+      
       return this.parseTextContent(text);
     } catch (error: any) {
+      console.error('❌ [IMPORT] Error parsing Word file:', error);
       throw new Error(`Word faylni o'qishda xatolik: ${error.message}`);
     }
   }

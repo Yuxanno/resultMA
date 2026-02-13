@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Search, Printer, ChevronDown, ChevronUp } from 'lucide-react';
 import MathText from '@/components/MathText';
+import { convertTiptapJsonToText } from '@/lib/latexUtils';
 
 export default function BlockTestAllTestsPage() {
   const { id } = useParams();
@@ -158,14 +159,17 @@ export default function BlockTestAllTestsPage() {
               const subjectData = questionsBySubject.get(currentSubjectId);
               
               if (subjectData && questionsAddedToCurrentSubject < subjectData.count) {
+                const questionText = convertTiptapJsonToText(q.text || q.question || '');
+                const optionsText = q.variants?.map((v: any) => convertTiptapJsonToText(v.text)) || q.options || [];
+                
                 questions.push({
                   number: questionNumber++,
                   subjectName: subjectData.name,
-                  question: q.text || q.question || '',
-                  options: q.variants?.map((v: any) => v.text) || q.options || [],
+                  question: questionText,
+                  options: optionsText,
                   correctAnswer: q.correctAnswer || '',
                   points: q.points || 1,
-                  image: q.imageUrl || q.image // Поддержка обоих полей
+                  image: q.imageUrl || q.image
                 });
                 
                 questionsAddedToCurrentSubject++;
@@ -189,15 +193,20 @@ export default function BlockTestAllTestsPage() {
                 if (subjectTest && subjectTest.questions) {
                   const subjectQuestions = subjectTest.questions
                     .slice(0, subjectConfig.questionCount)
-                    .map((q: any) => ({
-                      number: questionNumber++,
-                      subjectName: subjectName,
-                      question: q.text || q.question || '',
-                      options: q.variants?.map((v: any) => v.text) || q.options || [],
-                      correctAnswer: q.correctAnswer || '',
-                      points: q.points || 1,
-                      image: q.imageUrl || q.image // Поддержка обоих полей
-                    }));
+                    .map((q: any) => {
+                      const questionText = convertTiptapJsonToText(q.text || q.question || '');
+                      const optionsText = q.variants?.map((v: any) => convertTiptapJsonToText(v.text)) || q.options || [];
+                      
+                      return {
+                        number: questionNumber++,
+                        subjectName: subjectName,
+                        question: questionText,
+                        options: optionsText,
+                        correctAnswer: q.correctAnswer || '',
+                        points: q.points || 1,
+                        image: q.imageUrl || q.image
+                      };
+                    });
                   
                   questions.push(...subjectQuestions);
                 }

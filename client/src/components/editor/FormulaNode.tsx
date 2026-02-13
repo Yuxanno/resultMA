@@ -1,6 +1,6 @@
 import { NodeViewWrapper } from '@tiptap/react';
 import { useState, useRef, useEffect } from 'react';
-import { InlineMath } from 'react-katex';
+import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import FormulaPopover from './FormulaPopover';
 
@@ -8,26 +8,51 @@ export default function FormulaNode({ node, updateAttributes, selected, editor }
   const [isEditing, setIsEditing] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
   const nodeRef = useRef<HTMLSpanElement>(null);
+  const formulaRef = useRef<HTMLSpanElement>(null);
   const currentLatexRef = useRef<string>('');
+  const hasOpenedRef = useRef(false); // Флаг для предотвращения повторного открытия
   
   const rawLatex = node.attrs.latex || '';
   const latex = rawLatex.replace(/\\\\/g, '\\');
+  
+  console.log('🔍 [FormulaNode] Rendering formula:', { rawLatex, latex, hasLatex: !!latex, showPopover });
   
   useEffect(() => {
     currentLatexRef.current = latex;
   }, [latex]);
 
-  // Автоматически открываем popover ТОЛЬКО для новых пустых формул
-  // НЕ открываем для импортированных формул с содержимым
+  // Рендерим формулу через KaTeX
   useEffect(() => {
-    if (!latex && !showPopover && nodeRef.current) {
-      // Небольшая задержка чтобы node успел отрендериться
-      setTimeout(() => {
-        setShowPopover(true);
-        setIsEditing(true);
-      }, 100);
+    if (formulaRef.current && latex) {
+      try {
+        katex.render(latex, formulaRef.current, {
+          displayMode: false,
+          throwOnError: false,
+          errorColor: '#cc0000',
+          strict: false
+        });
+        console.log('✅ [FormulaNode] Formula rendered successfully');
+      } catch (error) {
+        console.error('❌ [FormulaNode] KaTeX render error:', error, 'LaTeX:', latex);
+        if (formulaRef.current) {
+          formulaRef.current.textContent = latex;
+          formulaRef.current.style.color = '#cc0000';
+        }
+      }
     }
-  }, []); // Пустой массив зависимостей - выполняется только при монтировании
+  }, [latex]);
+
+  // НЕ открываем popover автоматически
+  // Пользователь должен кликнуть на формулу чтобы открыть редактор
+  
+  // Автоматически открываем popover для новых пустых формул (созданных через Alt+=)
+  useEffect(() => {
+    if (!latex && !showPopover && !hasOpenedRef.current) {
+      console.log('🔍 [FormulaNode] New empty formula detected, opening popover automatically');
+      hasOpenedRef.current = true;
+      setShowPopover(true);
+    }
+  }, []); // Запускаем только при монтировании
 
   useEffect(() => {
     if (selected && !isEditing) {
@@ -73,17 +98,19 @@ export default function FormulaNode({ node, updateAttributes, selected, editor }
       <span
         ref={nodeRef}
         onDoubleClick={handleDoubleClick}
-        className={`inline-flex items-center px-2 py-1 mx-0.5 rounded-md cursor-pointer transition-all ${
+        onClick={handleDoubleClick}
+        className={`inline-flex items-center px-1 py-0.5 mx-0.5 rounded cursor-pointer transition-all ${
           selected
-            ? 'bg-blue-100 ring-2 ring-blue-400 ring-offset-1'
-            : 'bg-gray-50 hover:bg-gray-100'
+            ? 'bg-blue-50 ring-2 ring-blue-300'
+            : 'hover:bg-blue-50'
         }`}
         contentEditable={false}
+        title="Formulani tahrirlash uchun bosing"
       >
         {latex ? (
-          <InlineMath math={latex} />
+          <span ref={formulaRef} className="formula-content" />
         ) : (
-          <span className="text-gray-400 text-sm italic">formula</span>
+          <span className="text-blue-500 text-sm font-medium">📐</span>
         )}
       </span>
 

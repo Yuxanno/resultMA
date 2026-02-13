@@ -206,58 +206,6 @@ export default function BlockTestPrintAnswersPage() {
                   <span className="block text-xs text-gray-500">O'rtacha o'lcham, vertikal</span>
                 </span>
               </label>
-              
-              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                <input
-                  type="radio"
-                  name="sheetsPerPage"
-                  value="4"
-                  checked={sheetsPerPage === 4}
-                  onChange={() => setSheetsPerPage(4)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span className="ml-3 flex-1">
-                  <span className="font-medium">4 varaq</span>
-                  <span className="block text-xs text-gray-500">Kichik o'lcham, 2x2 grid</span>
-                </span>
-              </label>
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-3">
-              Ustunlar soni
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                <input
-                  type="radio"
-                  name="columnsCount"
-                  value="2"
-                  checked={columnsCount === 2}
-                  onChange={() => setColumnsCount(2)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span className="ml-3 flex-1">
-                  <span className="font-medium">2 ustun</span>
-                  <span className="block text-xs text-gray-500">60 tagacha savol uchun qulay</span>
-                </span>
-              </label>
-              
-              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                <input
-                  type="radio"
-                  name="columnsCount"
-                  value="3"
-                  checked={columnsCount === 3}
-                  onChange={() => setColumnsCount(3)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span className="ml-3 flex-1">
-                  <span className="font-medium">3 ustun</span>
-                  <span className="block text-xs text-gray-500">60 dan ortiq savol uchun qulay</span>
-                </span>
-              </label>
             </div>
           </div>
 
@@ -280,16 +228,16 @@ export default function BlockTestPrintAnswersPage() {
           
           return pages.map((variantsOnPage, pageIndex) => (
             <div key={pageIndex} className="page-break" style={{ 
-              width: '210mm', 
-              height: '297mm',
+              width: sheetsPerPage === 1 ? '50%' : '100%',
+              height: sheetsPerPage === 1 ? 'auto' : '297mm',
               margin: '0 auto',
               position: 'relative',
-              padding: '5mm',
+              padding: '0',
               backgroundColor: '#ffffff',
               display: sheetsPerPage === 1 ? 'block' : 'grid',
-              gridTemplateColumns: sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
-              gridTemplateRows: sheetsPerPage === 2 ? '1fr 1fr' : sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
-              gap: sheetsPerPage === 4 ? '2mm' : sheetsPerPage === 2 ? '3mm' : '0',
+              gridTemplateColumns: sheetsPerPage === 2 ? '1fr 1fr' : sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
+              gridTemplateRows: sheetsPerPage === 4 ? '1fr 1fr' : '1fr',
+              gap: sheetsPerPage === 4 ? '10mm' : sheetsPerPage === 2 ? '10mm' : '0',
               boxSizing: 'border-box'
             }}>
               {variantsOnPage.map((variant, idx) => (

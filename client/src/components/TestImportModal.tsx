@@ -42,7 +42,7 @@ export default function TestImportModal({ open, onClose, onSuccess }: TestImport
       icon: Image,
       title: 'Rasm',
       description: 'Skanerlangan testlar (OCR)',
-      accept: '.jpg,.jpeg,.png,.pdf',
+      accept: '.jpg,.jpeg,.png',
       color: 'from-purple-500 to-purple-600',
     },
   ];
@@ -157,7 +157,19 @@ export default function TestImportModal({ open, onClose, onSuccess }: TestImport
   };
 
   const handleConfirm = async () => {
+    // Validation: Check if all questions with variants have correct answer selected
+    const questionsWithoutAnswer = parsedQuestions.filter(
+      (q, idx) => q.variants.length > 0 && !q.correctAnswer
+    );
+    
+    if (questionsWithoutAnswer.length > 0) {
+      setError(`Iltimos, barcha savollar uchun to'g'ri javobni tanlang! (${questionsWithoutAnswer.length} ta savol uchun javob tanlanmagan)`);
+      return;
+    }
+    
     setIsProcessing(true);
+    setError('');
+    
     try {
       // Savollarni tasdiqlash va saqlash
       await api.post('/tests/import/confirm', {
@@ -377,107 +389,121 @@ export default function TestImportModal({ open, onClose, onSuccess }: TestImport
             </div>
 
             <div className="max-h-[500px] overflow-y-auto space-y-4 border rounded-lg p-4">
-              {parsedQuestions.map((q, idx) => (
-                <div key={idx} className="bg-white border-2 border-gray-200 p-4 rounded-lg space-y-3">
-                  {/* Question Header */}
-                  <div className="flex items-start gap-2">
-                    <span className="font-bold text-gray-700 mt-2">{idx + 1}.</span>
-                    <div className="flex-1">
-                      <textarea
-                        value={q.text}
-                        onChange={(e) => handleQuestionChange(idx, 'text', e.target.value)}
-                        className="w-full p-2 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows={2}
-                        placeholder="Savol matni..."
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleRemoveQuestion(idx)}
-                      className="text-red-500 hover:text-red-700 p-1"
-                      title="Savolni o'chirish"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Variants */}
-                  {q.variants.length > 0 ? (
-                    <div className="space-y-3 ml-6">
-                      {q.variants.map((v, vIdx) => (
-                        <div key={vIdx} className="flex items-center gap-3">
-                          <span className="font-bold text-gray-700 text-lg min-w-[40px]">{v.letter})</span>
-                          <input
-                            type="text"
-                            value={v.text}
-                            onChange={(e) => handleVariantChange(idx, vIdx, e.target.value)}
-                            className="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Variant matni..."
-                          />
-                          <button
-                            onClick={() => handleRemoveVariant(idx, vIdx)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                            title="Variantni o'chirish"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+              {parsedQuestions.map((q, idx) => {
+                const hasVariants = q.variants.length > 0;
+                const needsAnswer = hasVariants && !q.correctAnswer;
+                
+                return (
+                  <div 
+                    key={idx} 
+                    className={`bg-white border-2 p-4 rounded-lg space-y-3 ${
+                      needsAnswer ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                    }`}
+                  >
+                    {/* Question Header */}
+                    <div className="flex items-start gap-2">
+                      <span className="font-bold text-gray-700 mt-2">{idx + 1}.</span>
+                      <div className="flex-1">
+                        <textarea
+                          value={q.text}
+                          onChange={(e) => handleQuestionChange(idx, 'text', e.target.value)}
+                          className="w-full p-2 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows={2}
+                          placeholder="Savol matni..."
+                        />
+                      </div>
                       <button
-                        onClick={() => handleAddVariant(idx)}
-                        className="ml-12 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        onClick={() => handleRemoveQuestion(idx)}
+                        className="text-red-500 hover:text-red-700 p-1"
+                        title="Savolni o'chirish"
                       >
-                        + Variant qo'shish
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
-                  ) : (
-                    <div className="ml-6">
-                      <p className="text-sm text-gray-500 italic mb-2">Variantsiz savol (to'ldirish uchun)</p>
-                      <button
-                        onClick={() => handleAddVariant(idx)}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        + Variant qo'shish
-                      </button>
-                    </div>
-                  )}
 
-                  {/* Settings */}
-                  <div className="flex items-center gap-4 ml-6 pt-2 border-t">
-                    {q.variants.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm text-gray-600">To'g'ri javob:</label>
-                        <div className="flex gap-2">
-                          {q.variants.map((v) => (
+                    {/* Variants */}
+                    {q.variants.length > 0 ? (
+                      <div className="space-y-3 ml-6">
+                        {q.variants.map((v, vIdx) => (
+                          <div key={vIdx} className="flex items-center gap-3">
+                            <span className="font-bold text-gray-700 text-lg min-w-[40px]">{v.letter})</span>
+                            <input
+                              type="text"
+                              value={v.text}
+                              onChange={(e) => handleVariantChange(idx, vIdx, e.target.value)}
+                              className="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Variant matni..."
+                            />
                             <button
-                              key={v.letter}
-                              type="button"
-                              onClick={() => handleQuestionChange(idx, 'correctAnswer', v.letter)}
-                              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-all ${
-                                q.correctAnswer === v.letter
-                                  ? 'bg-green-500 border-green-600 text-white'
-                                  : 'bg-white border-gray-300 text-gray-700 hover:border-green-400'
-                              }`}
-                              title={`Вариант ${v.letter} - to'g'ri javob sifatida belgilash`}
+                              onClick={() => handleRemoveVariant(idx, vIdx)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Variantni o'chirish"
                             >
-                              {v.letter}
+                              <X className="w-4 h-4" />
                             </button>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => handleAddVariant(idx)}
+                          className="ml-12 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          + Variant qo'shish
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="ml-6">
+                        <p className="text-sm text-gray-500 italic mb-2">Variantsiz savol (to'ldirish uchun)</p>
+                        <button
+                          onClick={() => handleAddVariant(idx)}
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          + Variant qo'shish
+                        </button>
                       </div>
                     )}
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600">Ball:</label>
-                      <input
-                        type="number"
-                        value={q.points}
-                        onChange={(e) => handleQuestionChange(idx, 'points', e.target.value)}
-                        className="w-16 p-1 border rounded focus:ring-2 focus:ring-blue-500"
-                        min="1"
-                      />
+
+                    {/* Settings */}
+                    <div className="flex items-center gap-4 ml-6 pt-2 border-t">
+                      {q.variants.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <label className={`text-sm ${needsAnswer ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+                            To'g'ri javob: {needsAnswer && '⚠️'}
+                          </label>
+                          <div className="flex gap-2">
+                            {q.variants.map((v) => (
+                              <button
+                                key={v.letter}
+                                type="button"
+                                onClick={() => handleQuestionChange(idx, 'correctAnswer', v.letter)}
+                                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-all ${
+                                  q.correctAnswer === v.letter
+                                    ? 'bg-green-500 border-green-600 text-white'
+                                    : needsAnswer
+                                    ? 'bg-white border-red-400 text-gray-700 hover:border-red-500 animate-pulse'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:border-green-400'
+                                }`}
+                                title={`Вариант ${v.letter} - to'g'ri javob sifatida belgilash`}
+                              >
+                                {v.letter}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600">Ball:</label>
+                        <input
+                          type="number"
+                          value={q.points}
+                          onChange={(e) => handleQuestionChange(idx, 'points', e.target.value)}
+                          className="w-16 p-1 border rounded focus:ring-2 focus:ring-blue-500"
+                          min="1"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {error && (

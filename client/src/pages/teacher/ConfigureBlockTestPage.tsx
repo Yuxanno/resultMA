@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/useToast';
 import StudentConfigModal from '@/components/StudentConfigModal';
 import GroupConfigModal from '@/components/GroupConfigModal';
 import StudentSelectionPrintModal from '@/components/StudentSelectionPrintModal';
-import ShuffleVariantsModal from '@/components/ShuffleVariantsModal';
 import BlockTestActionsModal from '@/components/BlockTestActionsModal';
 import { 
   ArrowLeft, 
@@ -41,7 +40,6 @@ export default function ConfigureBlockTestPage() {
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showShuffleModal, setShowShuffleModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [printMode, setPrintMode] = useState<'all' | 'questions' | 'answers'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -532,9 +530,23 @@ export default function ConfigureBlockTestPage() {
           setPrintMode('answers');
           setShowPrintModal(true);
         }}
-        onShuffle={() => {
+        onShuffle={async () => {
           setShowActionsModal(false);
-          setShowShuffleModal(true);
+          // Сразу перемешиваем для всех студентов без модального окна
+          try {
+            setSaving(true);
+            const studentIds = students.map(s => s._id);
+            await api.post(`/block-tests/${id}/generate-variants`, {
+              studentIds
+            });
+            success(`${studentIds.length} ta o'quvchi uchun variantlar aralashtirildi`);
+            await loadData();
+          } catch (err: any) {
+            console.error('Error shuffling:', err);
+            error('Variantlarni aralashtirishda xatolik');
+          } finally {
+            setSaving(false);
+          }
         }}
       />
 
@@ -545,15 +557,6 @@ export default function ConfigureBlockTestPage() {
         students={students}
         mode={printMode}
         onPrint={handlePrint}
-      />
-
-      {/* Shuffle Modal */}
-      <ShuffleVariantsModal
-        isOpen={showShuffleModal}
-        onClose={() => setShowShuffleModal(false)}
-        students={students}
-        onShuffle={handleShuffle}
-        loading={saving}
       />
     </div>
   );

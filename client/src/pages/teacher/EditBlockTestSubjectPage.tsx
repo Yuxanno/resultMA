@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { ArrowLeft, Save, Trash2, Plus, ImagePlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { convertTiptapJsonToText } from '@/lib/latexUtils';
 
 export default function EditBlockTestSubjectPage() {
   const { id, subjectIndex } = useParams();
@@ -65,7 +66,43 @@ export default function EditBlockTestSubjectPage() {
       
       if (subject) {
         setSubjectName(subject.subjectId?.nameUzb || 'Fan');
-        setQuestions(subject.questions || []);
+        
+        // Конвертируем JSON-строки обратно в объекты для редактора
+        const processedQuestions = (subject.questions || []).map((q: any) => {
+          let processedText = q.text;
+          let processedVariants = q.variants || [];
+          
+          // Если text - это JSON-строка, парсим её
+          if (typeof q.text === 'string' && q.text.startsWith('{')) {
+            try {
+              processedText = JSON.parse(q.text);
+            } catch (e) {
+              // Если не удалось распарсить, оставляем как есть
+              processedText = q.text;
+            }
+          }
+          
+          // Обрабатываем варианты
+          processedVariants = (q.variants || []).map((v: any) => {
+            let variantText = v.text;
+            if (typeof v.text === 'string' && v.text.startsWith('{')) {
+              try {
+                variantText = JSON.parse(v.text);
+              } catch (e) {
+                variantText = v.text;
+              }
+            }
+            return { ...v, text: variantText };
+          });
+          
+          return {
+            ...q,
+            text: processedText,
+            variants: processedVariants
+          };
+        });
+        
+        setQuestions(processedQuestions);
       }
     } catch (error) {
       console.error('Error loading block test:', error);
@@ -98,11 +135,32 @@ export default function EditBlockTestSubjectPage() {
       }
       
       // Преобразуем вопросы: image -> imageUrl для совместимости с моделью
-      const questionsFormatted = questions.map(q => ({
-        ...q,
-        imageUrl: q.image || q.imageUrl, // Переименовываем image в imageUrl
-        image: undefined // Удаляем старое поле
-      }));
+      // И конвертируем JSON-объекты в строки для сохранения
+      const questionsFormatted = questions.map(q => {
+        let textToSave = q.text;
+        
+        // Если text - это объект (TipTap JSON), конвертируем в строку
+        if (typeof q.text === 'object' && q.text !== null) {
+          textToSave = JSON.stringify(q.text);
+        }
+        
+        // Обрабатываем варианты
+        const variantsFormatted = (q.variants || []).map((v: any) => {
+          let variantText = v.text;
+          if (typeof v.text === 'object' && v.text !== null) {
+            variantText = JSON.stringify(v.text);
+          }
+          return { ...v, text: variantText };
+        });
+        
+        return {
+          ...q,
+          text: textToSave,
+          variants: variantsFormatted,
+          imageUrl: q.image || q.imageUrl,
+          image: undefined
+        };
+      });
       
       console.log('🔍 Questions with images:', questionsFormatted.filter(q => q.imageUrl).length);
       

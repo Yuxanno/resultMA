@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
-import { Printer, Download } from 'lucide-react';
+import { Printer, Download, Settings } from 'lucide-react';
 import MathText from '@/components/MathText';
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, PageBreak } from 'docx';
 import { saveAs } from 'file-saver';
+import { convertTiptapJsonToText } from '@/lib/latexUtils';
 
 interface StudentVariant {
   student: any;
@@ -23,11 +24,12 @@ export default function BlockTestPrintQuestionsPage() {
   const [blockTest, setBlockTest] = useState<any>(null);
   const [studentVariants, setStudentVariants] = useState<StudentVariant[]>([]);
   
-  // Print settings - get from URL or use defaults
+  // Print settings - similar to TestPrintPage
   const [fontSize, setFontSize] = useState(fontSizeParam ? parseInt(fontSizeParam) : 12);
   const [spacing, setSpacing] = useState('normal');
   const [showSubjectLabels, setShowSubjectLabels] = useState(true);
   const [columnsCount, setColumnsCount] = useState(1);
+  const [testsPerPage, setTestsPerPage] = useState(1);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
   useEffect(() => {
@@ -125,11 +127,15 @@ export default function BlockTestPrintQuestionsPage() {
                 }
               }
               
+              // Конвертируем TipTap JSON в текст если нужно
+              const questionText = convertTiptapJsonToText(q.text || q.question || '');
+              const optionsText = q.variants?.map((v: any) => convertTiptapJsonToText(v.text)) || q.options || [];
+              
               return {
                 number: idx + 1,
                 subjectName,
-                question: q.text || q.question || '',
-                options: q.variants?.map((v: any) => v.text) || q.options || [],
+                question: questionText,
+                options: optionsText,
                 correctAnswer: q.correctAnswer || '',
                 points: q.points || 1,
                 image: q.imageUrl || q.image
@@ -160,15 +166,21 @@ export default function BlockTestPrintQuestionsPage() {
               // Берем нужное количество вопросов
               const questionsToUse = subjectTest.questions.slice(0, subjectConfig.questionCount);
               
-              const subjectQuestions = questionsToUse.map((q: any) => ({
-                number: questionNumber++,
-                subjectName: subjectConfig.subjectId.nameUzb || 'Fan',
-                question: q.text || q.question || '',
-                options: q.variants?.map((v: any) => v.text) || q.options || [],
-                correctAnswer: q.correctAnswer || '',
-                points: q.points || 1,
-                image: q.imageUrl || q.image
-              }));
+              const subjectQuestions = questionsToUse.map((q: any) => {
+                // Конвертируем TipTap JSON в текст если нужно
+                const questionText = convertTiptapJsonToText(q.text || q.question || '');
+                const optionsText = q.variants?.map((v: any) => convertTiptapJsonToText(v.text)) || q.options || [];
+                
+                return {
+                  number: questionNumber++,
+                  subjectName: subjectConfig.subjectId.nameUzb || 'Fan',
+                  question: questionText,
+                  options: optionsText,
+                  correctAnswer: q.correctAnswer || '',
+                  points: q.points || 1,
+                  image: q.imageUrl || q.image
+                };
+              });
               
               questions.push(...subjectQuestions);
             }
@@ -369,27 +381,24 @@ export default function BlockTestPrintQuestionsPage() {
     switch (spacing) {
       case 'compact':
         return {
-          container: 'p-2',
-          header: 'mb-2 pb-1',
-          questions: 'space-y-1',
-          question: 'pb-1',
-          options: 'space-y-0 ml-2'
+          container: 'space-y-1',
+          question: 'mb-1 pb-1',
+          header: 'mb-2 pb-2',
+          questions: 'space-y-1'
         };
       case 'relaxed':
         return {
-          container: 'p-6',
-          header: 'mb-4 pb-3',
-          questions: 'space-y-4',
-          question: 'pb-3',
-          options: 'space-y-1.5 ml-4'
+          container: 'space-y-4',
+          question: 'mb-3 pb-3',
+          header: 'mb-4 pb-4',
+          questions: 'space-y-3'
         };
       default: // normal
         return {
-          container: 'p-4',
-          header: 'mb-3 pb-2',
-          questions: 'space-y-2',
-          question: 'pb-2',
-          options: 'space-y-0.5 ml-3'
+          container: 'space-y-2',
+          question: 'mb-2 pb-2',
+          header: 'mb-3 pb-3',
+          questions: 'space-y-2'
         };
     }
   };
@@ -407,13 +416,14 @@ export default function BlockTestPrintQuestionsPage() {
   return (
     <div className="min-h-screen bg-white print-view-mode">
       {/* Settings Panel */}
-      <div className="print:hidden fixed top-4 right-4 z-50 flex gap-2">
+      <div className="print:hidden no-print mb-6 p-4 flex gap-3 bg-white">
         <Button 
           onClick={() => setShowSettingsPanel(!showSettingsPanel)} 
           variant="outline"
           size="lg"
         >
-          ⚙️ Sozlamalar
+          <Settings className="w-5 h-5 mr-2" />
+          Sozlamalar
         </Button>
         <Button onClick={handleDownloadWord} variant="outline" size="lg">
           <Download className="w-5 h-5 mr-2" />
@@ -427,7 +437,7 @@ export default function BlockTestPrintQuestionsPage() {
 
       {/* Settings Dropdown */}
       {showSettingsPanel && (
-        <div className="print:hidden fixed top-20 right-4 z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 w-80">
+        <div className="print:hidden no-print fixed top-20 right-4 z-50 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 w-80">
           <h3 className="font-bold text-lg mb-4">Chop etish sozlamalari</h3>
           
           {/* Font Size */}
@@ -441,7 +451,7 @@ export default function BlockTestPrintQuestionsPage() {
               max="18"
               value={fontSize}
               onChange={(e) => setFontSize(Number(e.target.value))}
-              className="w-full"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Kichik (8px)</span>
@@ -504,10 +514,35 @@ export default function BlockTestPrintQuestionsPage() {
                 type="checkbox"
                 checked={showSubjectLabels}
                 onChange={(e) => setShowSubjectLabels(e.target.checked)}
-                className="w-4 h-4"
+                className="w-4 h-4 accent-blue-500"
               />
               <span className="text-sm">Fan nomlarini ko'rsatish</span>
             </label>
+          </div>
+
+          {/* Tests Per Page */}
+          <div className="mb-4 border-t pt-4">
+            <label className="block text-sm font-medium mb-2">
+              Bir sahifada testlar soni
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 4].map((count) => (
+                <button
+                  key={count}
+                  onClick={() => setTestsPerPage(count)}
+                  className={`py-2 px-4 rounded border-2 font-medium transition-colors ${
+                    testsPerPage === count
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {testsPerPage === 1 ? 'Katta va aniq' : testsPerPage === 2 ? 'Muvozanatli' : 'Ixcham'}
+            </p>
           </div>
 
           <button
@@ -519,92 +554,117 @@ export default function BlockTestPrintQuestionsPage() {
         </div>
       )}
 
-      <div className={spacingClasses.container} style={{ fontSize: `${fontSize}px` }}>
-        {studentVariants.map((variant, index) => {
-          // Группируем вопросы по предметам
-          const questionsBySubject = new Map<string, any[]>();
-          variant.questions.forEach((q: any) => {
-            if (!questionsBySubject.has(q.subjectName)) {
-              questionsBySubject.set(q.subjectName, []);
-            }
-            questionsBySubject.get(q.subjectName)!.push(q);
-          });
+      <div style={{ fontSize: `${fontSize}px` }}>
+        {/* Group students by pages */}
+        {(() => {
+          const pages = [];
+          for (let i = 0; i < studentVariants.length; i += testsPerPage) {
+            pages.push(studentVariants.slice(i, i + testsPerPage));
+          }
+          
+          return pages.map((variantsOnPage, pageIndex) => (
+            <div key={pageIndex} className="page-break mb-8">
+              <div className={`grid gap-6 ${testsPerPage === 2 ? 'grid-cols-2' : testsPerPage === 4 ? 'grid-cols-2' : ''}`}>
+                {variantsOnPage.map((variant) => {
+                  // Группируем вопросы по предметам
+                  const questionsBySubject = new Map<string, any[]>();
+                  variant.questions.forEach((q: any) => {
+                    if (!questionsBySubject.has(q.subjectName)) {
+                      questionsBySubject.set(q.subjectName, []);
+                    }
+                    questionsBySubject.get(q.subjectName)!.push(q);
+                  });
 
-          return (
-            <div key={variant.student._id} className={`mb-4 page-break`} style={{ pageBreakAfter: 'always' }}>
-              <div className={`${spacingClasses.header} border-b-2 border-gray-800 mb-4`}>
-                <h1 className="font-bold text-center mb-1" style={{ fontSize: `${fontSize + 4}px` }}>
-                  BLOK TEST - SAVOLLAR
-                </h1>
-                <div className="text-center">
-                  <p className="font-semibold">{variant.student.fullName}</p>
-                  <p className="text-gray-600" style={{ fontSize: `${fontSize - 2}px` }}>
-                    {blockTest.classNumber}-sinf | {variant.student.directionId?.nameUzb}
-                  </p>
-                  <p className="text-gray-500" style={{ fontSize: `${fontSize - 2}px` }}>
-                    Jami: {variant.questions.length} ta savol
-                  </p>
-                </div>
-              </div>
+                  return (
+                    <div key={variant.student._id} className={testsPerPage > 1 ? 'border-2 border-gray-300 p-3' : ''}>
+                      {/* Header */}
+                      <div className={`flex justify-between items-start ${spacingClasses.header}`}>
+                        <div className={testsPerPage > 1 ? 'text-sm' : ''}>
+                          <h2 className={`font-bold ${testsPerPage > 1 ? 'text-base' : ''}`} style={{ fontSize: testsPerPage > 1 ? `${fontSize}px` : `${fontSize + 4}px` }}>
+                            {variant.student.fullName}
+                          </h2>
+                          {showSubjectLabels && (
+                            <p style={{ fontSize: `${fontSize - 2}px` }}>
+                              {blockTest.classNumber}-sinf | {variant.student.directionId?.nameUzb || ''}
+                            </p>
+                          )}
+                          <p style={{ fontSize: `${fontSize - 2}px` }}>
+                            Jami: {variant.questions.length} ta savol
+                          </p>
+                        </div>
+                      </div>
 
-              {/* Вопросы по предметам */}
-              {Array.from(questionsBySubject.entries()).map(([subjectName, questions], subjectIndex) => (
-                <div key={subjectName} className="mb-6">
-                  {/* Заголовок предмета */}
-                  <div className="bg-blue-50 border-l-4 border-blue-500 px-3 py-2 mb-3">
-                    <h2 className="font-bold text-blue-900" style={{ fontSize: `${fontSize + 2}px` }}>
-                      {subjectName}
-                    </h2>
-                  </div>
+                      <hr className="border-t-2 border-gray-800" style={{ marginBottom: spacingClasses.header.includes('mb-2') ? '0.5rem' : spacingClasses.header.includes('mb-3') ? '0.75rem' : '1rem' }} />
 
-                  {/* Вопросы предмета */}
-                  <div className={`${spacingClasses.questions} ${columnsCount === 2 ? 'columns-2 gap-4' : ''}`}>
-                    {questions.map((question) => (
-                      <div key={question.number} className={`border-b border-gray-200 ${spacingClasses.question}`}>
-                        <div className="flex items-start gap-2">
-                          <span className="font-bold min-w-[30px]">
-                            {question.number}.
-                          </span>
-                          <div className="flex-1">
-                            <div className="mb-1.5 leading-tight">
-                              <MathText text={question.question} />
+                      {/* Questions by Subject */}
+                      {Array.from(questionsBySubject.entries()).map(([subjectName, questions], subjectIndex) => (
+                        <div key={subjectName} className="mb-4">
+                          {/* Subject Header */}
+                          {showSubjectLabels && (
+                            <div className="bg-blue-50 border-l-4 border-blue-500 px-3 py-2 mb-3">
+                              <h3 className="font-bold text-blue-900" style={{ fontSize: `${fontSize + 2}px` }}>
+                                {subjectName}
+                              </h3>
                             </div>
-                            {question.image && (
-                              <div className="my-2">
-                                <img 
-                                  src={question.image} 
-                                  alt="Question" 
-                                  className="max-w-full h-auto"
-                                  style={{ maxHeight: '200px', objectFit: 'contain' }}
-                                />
-                              </div>
-                            )}
-                            <div className={spacingClasses.options}>
-                              {question.options?.map((option: string, idx: number) => (
-                                <span key={idx} className="mr-4">
-                                  <span className="font-medium">
-                                    {String.fromCharCode(65 + idx)})
-                                  </span>
-                                  {' '}
-                                  <MathText text={option} />
-                                </span>
+                          )}
+
+                          {/* Questions */}
+                          <div className={columnsCount === 2 ? 'columns-2 gap-4' : ''} style={{ columnGap: columnsCount === 2 ? '1rem' : '0' }}>
+                            <div className={spacingClasses.questions}>
+                              {questions.map((question) => (
+                                <div key={question.number} className={`page-break-inside-avoid ${spacingClasses.question}`}>
+                                  <div className="mb-1">
+                                    <span className="font-bold">{question.number}. </span>
+                                    <span>
+                                      <MathText text={question.question} />
+                                    </span>
+                                  </div>
+                                  {question.image && (
+                                    <div className="my-2 ml-6 print-image-container">
+                                      <img 
+                                        src={question.image} 
+                                        alt="Question" 
+                                        className="max-w-full h-auto print-image"
+                                        style={{ 
+                                          maxHeight: testsPerPage === 1 ? '200px' : '150px', 
+                                          objectFit: 'contain',
+                                          display: 'block'
+                                        }}
+                                        onLoad={(e) => {
+                                          (e.target as HTMLImageElement).style.opacity = '1';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                  <div className={testsPerPage > 1 ? 'ml-3' : 'ml-6'}>
+                                    {question.options?.map((option: string, idx: number) => (
+                                      <span key={idx} className="mr-4">
+                                        <span className="font-semibold">
+                                          {String.fromCharCode(65 + idx)})
+                                        </span>
+                                        {' '}
+                                        <MathText text={option} />
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
 
-                  {/* Разделитель между предметами */}
-                  {subjectIndex < questionsBySubject.size - 1 && (
-                    <div className="my-4 border-t-2 border-dashed border-gray-300"></div>
-                  )}
-                </div>
-              ))}
+                          {/* Separator between subjects */}
+                          {subjectIndex < questionsBySubject.size - 1 && (
+                            <div className="my-4 border-t-2 border-dashed border-gray-300"></div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          );
-        })}
+          ));
+        })()}
       </div>
 
       <style>{`
@@ -620,6 +680,16 @@ export default function BlockTestPrintQuestionsPage() {
             overflow: visible !important;
           }
           
+          .no-print { 
+            display: none !important; 
+          }
+          
+          body { 
+            print-color-adjust: exact; 
+            -webkit-print-color-adjust: exact;
+            background: white !important;
+          }
+          
           .page-break {
             page-break-after: always;
             page-break-inside: avoid;
@@ -632,23 +702,44 @@ export default function BlockTestPrintQuestionsPage() {
             break-after: auto !important;
           }
           
+          .page-break-inside-avoid { 
+            page-break-inside: avoid; 
+            break-inside: avoid; 
+          }
+          
+          * { 
+            background: white !important;
+          }
+          
+          /* Show images in print */
+          .print-image-container {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          
+          .print-image {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            max-width: 100% !important;
+            height: auto !important;
+          }
+          
+          img {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            page-break-inside: avoid;
+          }
+          
           @page {
             size: A4 portrait;
             margin: 1cm;
             padding: 0;
           }
           
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          
-          .columns-2 {
-            column-count: 2;
-            column-gap: 1rem;
-          }
-          
-          /* Сохраняем цвета при печати */
+          /* Preserve colors */
           .bg-blue-50 {
             background-color: #eff6ff !important;
           }
@@ -661,18 +752,25 @@ export default function BlockTestPrintQuestionsPage() {
             color: #1e3a8a !important;
           }
           
-          /* Убираем сайдбар и навигацию */
-          aside, nav, header, .sidebar { display: none !important; }
-          main { margin: 0 !important; padding: 0 !important; }
+          /* Hide sidebar and navigation */
+          aside, nav, header, .sidebar { 
+            display: none !important; 
+          }
+          
+          main { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+          }
         }
         
-        /* Скрываем сайдбар в режиме просмотра */
+        /* Hide sidebar in view mode */
         body:has(.print-view-mode) aside,
         body:has(.print-view-mode) nav,
         body:has(.print-view-mode) header,
         body:has(.print-view-mode) .sidebar {
           display: none !important;
         }
+        
         body:has(.print-view-mode) main {
           margin: 0 !important;
           padding: 0 !important;

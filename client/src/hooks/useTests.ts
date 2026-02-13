@@ -44,9 +44,10 @@ export const useCreateTest = () => {
       const { data } = await api.post('/tests', testData);
       return data;
     },
-    onSuccess: () => {
-      console.log('✅ Test created, invalidating cache...');
-      queryClient.invalidateQueries({ queryKey: testKeys.all });
+    onSuccess: async () => {
+      console.log('✅ Test created, refetching data...');
+      await queryClient.refetchQueries({ queryKey: testKeys.all });
+      console.log('✅ Tests list refreshed');
     },
   });
 };
@@ -60,9 +61,11 @@ export const useImportTest = () => {
       const { data } = await api.post('/tests/import/confirm', importData);
       return data;
     },
-    onSuccess: () => {
-      console.log('✅ Test imported, invalidating cache...');
-      queryClient.invalidateQueries({ queryKey: testKeys.all });
+    onSuccess: async () => {
+      console.log('✅ Test imported, refetching data...');
+      // Используем refetchQueries вместо invalidateQueries для немедленного обновления
+      await queryClient.refetchQueries({ queryKey: testKeys.all });
+      console.log('✅ Tests list refreshed');
     },
   });
 };
@@ -77,10 +80,10 @@ export const useDeleteTest = () => {
       await api.delete(`/tests/${id}`);
       console.log('✅ Test deleted successfully');
     },
-    onSuccess: () => {
-      console.log('🔄 Invalidating tests cache...');
-      // Инвалидируем ВСЕ запросы связанные с тестами
-      queryClient.invalidateQueries({ queryKey: testKeys.all });
+    onSuccess: async () => {
+      console.log('🔄 Refetching tests...');
+      await queryClient.refetchQueries({ queryKey: testKeys.all });
+      console.log('✅ Tests list refreshed');
     },
   });
 };

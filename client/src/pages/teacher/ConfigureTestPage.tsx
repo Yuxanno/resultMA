@@ -61,7 +61,9 @@ export default function ConfigureTestPage() {
 
   const handleGenerateVariants = async () => {
     try {
-      await api.post(`/tests/${id}/generate-variants`);
+      console.log('🔄 Generating variants for test:', id);
+      const response = await api.post(`/tests/${id}/generate-variants`);
+      console.log('✅ Variants generated:', response.data);
       success('Variantlar yaratildi');
       loadData();
     } catch (err: any) {

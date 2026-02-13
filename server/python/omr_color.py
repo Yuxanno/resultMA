@@ -98,8 +98,19 @@ def detect_columns(circles):
     return boundaries
 
 
-def sort_into_questions(circles, boundaries):
-    """Sort circles into questions (4 per row, multiple columns)"""
+def sort_into_questions(circles, boundaries, expected_questions=15):
+    """Sort circles into questions (4 per row, multiple columns)
+    
+    Args:
+        circles: List of detected circles
+        boundaries: Column boundaries
+        expected_questions: Expected number of questions (default 15)
+    
+    Returns:
+        List of questions, where each question is either:
+        - List of 4 circles (valid question)
+        - None (missing/incomplete question)
+    """
     # Separate by column
     columns = [[] for _ in range(len(boundaries))]
     
@@ -133,16 +144,24 @@ def sort_into_questions(circles, boundaries):
                 current_row.append(circle)
             else:
                 # Process row
-                if len(current_row) >= 4:
+                if len(current_row) == 4:
+                    # Valid question with 4 bubbles
                     current_row.sort(key=lambda c: c[0])
                     col_questions.append(current_row[:4])
+                elif len(current_row) > 0:
+                    # Incomplete row - still add as None to maintain indexing
+                    print(f"DEBUG: Incomplete row with {len(current_row)} circles (expected 4)", file=sys.stderr)
+                    col_questions.append(None)
                 
                 current_row = [circle]
         
         # Last row
-        if len(current_row) >= 4:
+        if len(current_row) == 4:
             current_row.sort(key=lambda c: c[0])
             col_questions.append(current_row[:4])
+        elif len(current_row) > 0:
+            print(f"DEBUG: Last incomplete row with {len(current_row)} circles (expected 4)", file=sys.stderr)
+            col_questions.append(None)
         
         column_questions.append(col_questions)
     
@@ -151,7 +170,13 @@ def sort_into_questions(circles, boundaries):
     for col_q in column_questions:
         all_questions.extend(col_q)
     
-    print(f"DEBUG: Total questions: {len(all_questions)}", file=sys.stderr)
+    # Pad with None if we have fewer questions than expected
+    while len(all_questions) < expected_questions:
+        all_questions.append(None)
+    
+    print(f"DEBUG: Total questions: {len(all_questions)} (expected: {expected_questions})", file=sys.stderr)
+    valid_count = sum(1 for q in all_questions if q is not None)
+    print(f"DEBUG: Valid questions: {valid_count}, Missing: {expected_questions - valid_count}", file=sys.stderr)
     
     return all_questions
 
@@ -194,9 +219,23 @@ def is_circle_filled_color(img, gray, x, y, r):
     return is_filled, brightness, (avg_r, avg_g, avg_b)
 
 
-def grade_exam(image_path, correct_answers=None):
-    """Main grading function"""
+def grade_exam(image_path, correct_answers=None, qr_data=None):
+    """Main grading function
+    
+    Args:
+        image_path: Path to the answer sheet image
+        correct_answers: Dict of correct answers (optional)
+        qr_data: Dict with QR code data including 'totalQuestions' (optional)
+    """
     try:
+        # Determine expected number of questions
+        expected_questions = 15  # Default
+        if qr_data and 'totalQuestions' in qr_data:
+            expected_questions = int(qr_data['totalQuestions'])
+            print(f"DEBUG: Using {expected_questions} questions from QR code", file=sys.stderr)
+        else:
+            print(f"DEBUG: Using default {expected_questions} questions (no QR data)", file=sys.stderr)
+        
         img, gray = preprocess_image(image_path)
         
         circles = find_circles_aggressive(gray)
@@ -210,7 +249,7 @@ def grade_exam(image_path, correct_answers=None):
             }
         
         boundaries = detect_columns(circles)
-        questions = sort_into_questions(circles, boundaries)
+        questions = sort_into_questions(circles, boundaries, expected_questions=expected_questions)
         
         if len(questions) == 0:
             return {
@@ -227,6 +266,13 @@ def grade_exam(image_path, correct_answers=None):
         annotated = img.copy()
         
         for question_num, row_circles in enumerate(questions, start=1):
+            # Skip if question is None (missing/incomplete)
+            if row_circles is None:
+                print(f"DEBUG Q{question_num}: Missing or incomplete (no circles found)", file=sys.stderr)
+                # Draw "MISSING" indicator
+                # We don't have coordinates, so skip drawing
+                continue
+            
             filled_bubbles = []
             
             # Рисуем номер вопроса слева от ряда
@@ -307,6 +353,9 @@ def grade_exam(image_path, correct_answers=None):
         cv2.imwrite(str(output_path), annotated)
         
         print(f"DEBUG: Detected {len(detected_answers)} valid answers from {len(questions)} questions", file=sys.stderr)
+        missing_count = sum(1 for q in questions if q is None)
+        if missing_count > 0:
+            print(f"DEBUG: Found {missing_count} missing/incomplete questions", file=sys.stderr)
         if invalid_answers:
             print(f"DEBUG: Found {len(invalid_answers)} questions with multiple answers (invalid)", file=sys.stderr)
         
@@ -329,9 +378,12 @@ def grade_exam(image_path, correct_answers=None):
         print(f"  Total questions: {len(questions)}", file=sys.stderr)
         print(f"  Valid answers: {len(detected_answers)}", file=sys.stderr)
         print(f"  Invalid answers: {len(invalid_answers)}", file=sys.stderr)
-        print(f"  First 10 detected answers:", file=sys.stderr)
-        for i in range(1, min(11, len(questions) + 1)):
-            if i in detected_answers:
+        print(f"  Missing questions: {missing_count}", file=sys.stderr)
+        print(f"  First 15 detected answers:", file=sys.stderr)
+        for i in range(1, min(16, len(questions) + 1)):
+            if questions[i-1] is None:
+                print(f"    Q{i}: MISSING", file=sys.stderr)
+            elif i in detected_answers:
                 print(f"    Q{i}: {detected_answers[i]}", file=sys.stderr)
             elif i in invalid_answers:
                 print(f"    Q{i}: INVALID ({', '.join(invalid_answers[i])})", file=sys.stderr)
@@ -357,12 +409,13 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             'success': False,
-            'error': 'Usage: python omr_color.py <image_path> [correct_answers_json]'
+            'error': 'Usage: python omr_color.py <image_path> [correct_answers_json] [qr_data_json]'
         }))
         sys.exit(1)
     
     image_path = sys.argv[1]
     correct_answers = None
+    qr_data = None
     
     # Если передан второй аргумент - это JSON с правильными ответами
     if len(sys.argv) >= 3:
@@ -372,7 +425,15 @@ def main():
         except json.JSONDecodeError as e:
             print(f"WARNING: Failed to parse correct answers: {e}", file=sys.stderr)
     
-    result = grade_exam(image_path, correct_answers)
+    # Если передан третий аргумент - это JSON с данными QR-кода
+    if len(sys.argv) >= 4:
+        try:
+            qr_data = json.loads(sys.argv[3])
+            print(f"DEBUG: Loaded QR data: {qr_data}", file=sys.stderr)
+        except json.JSONDecodeError as e:
+            print(f"WARNING: Failed to parse QR data: {e}", file=sys.stderr)
+    
+    result = grade_exam(image_path, correct_answers, qr_data)
     print(json.dumps(result, ensure_ascii=False))
 
 

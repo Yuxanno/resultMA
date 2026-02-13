@@ -11,6 +11,21 @@ router.get('/test/:testId', authenticate, async (req: AuthRequest, res) => {
       .populate('studentId')
       .sort({ createdAt: -1 })
       .lean();
+    
+    console.log(`📦 API: Returning ${variants.length} variants for test ${req.params.testId}`);
+    if (variants.length > 0) {
+      console.log(`📦 Sample variant:`, {
+        variantCode: variants[0].variantCode,
+        studentId: variants[0].studentId?._id,
+        hasShuffledQuestions: !!variants[0].shuffledQuestions,
+        shuffledQuestionsCount: variants[0].shuffledQuestions?.length,
+        firstQuestionVariants: variants[0].shuffledQuestions?.[0]?.variants?.map((v: any) => 
+          `${v.letter}: ${v.text?.substring(0, 20)}`
+        ),
+        firstQuestionCorrect: variants[0].shuffledQuestions?.[0]?.correctAnswer
+      });
+    }
+    
     res.json(variants);
   } catch (error) {
     console.error('Error fetching test variants:', error);

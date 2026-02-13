@@ -78,9 +78,20 @@ export default function ImportBlockTestPage() {
         const hasFormulas = q.text.includes('\\(') || q.text.includes('\\[');
         const questionJson = hasFormulas ? convertLatexToTiptapJson(q.text) : null;
         
+        // Обрабатываем варианты
+        const processedVariants = (q.variants || []).map((v: any) => {
+          const variantHasFormulas = v.text.includes('\\(') || v.text.includes('\\[');
+          const variantJson = variantHasFormulas ? convertLatexToTiptapJson(v.text) : null;
+          return {
+            ...v,
+            text: variantJson || v.text // Оставляем объект, не конвертируем в строку
+          };
+        });
+        
         return {
           ...q,
-          text: questionJson ? JSON.stringify(questionJson) : q.text,
+          text: questionJson || q.text, // Оставляем объект, не конвертируем в строку
+          variants: processedVariants
         };
       });
 
@@ -116,11 +127,32 @@ export default function ImportBlockTestPage() {
     
     try {
       // Преобразуем вопросы: image -> imageUrl для совместимости с моделью
-      const questionsFormatted = parsedQuestions.map(q => ({
-        ...q,
-        imageUrl: q.image, // Переименовываем image в imageUrl
-        image: undefined // Удаляем старое поле
-      }));
+      // И конвертируем JSON-объекты в строки для сохранения
+      const questionsFormatted = parsedQuestions.map(q => {
+        let textToSave = q.text;
+        
+        // Если text - это объект (TipTap JSON), конвертируем в строку
+        if (typeof q.text === 'object' && q.text !== null) {
+          textToSave = JSON.stringify(q.text);
+        }
+        
+        // Обрабатываем варианты
+        const variantsFormatted = (q.variants || []).map((v: any) => {
+          let variantText = v.text;
+          if (typeof v.text === 'object' && v.text !== null) {
+            variantText = JSON.stringify(v.text);
+          }
+          return { ...v, text: variantText };
+        });
+        
+        return {
+          ...q,
+          text: textToSave,
+          variants: variantsFormatted,
+          imageUrl: q.image,
+          image: undefined
+        };
+      });
       
       // Используем React Query mutation
       const savedBlockTest = await importBlockTestMutation.mutateAsync({

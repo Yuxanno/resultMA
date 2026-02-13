@@ -13,7 +13,7 @@ This directory contains Python scripts for Optical Mark Recognition (OMR) proces
 - Python 3.7+
 - OpenCV (opencv-python)
 - NumPy
-- Pillow
+- pyzbar (for QR code scanning)
 
 ## Installation
 

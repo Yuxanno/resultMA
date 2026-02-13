@@ -1,150 +1,167 @@
-import React, { useState } from 'react';
-import { Dialog } from '@/components/ui/Dialog';
+import { useState } from 'react';
+import { X, Shuffle, Download, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
-import { Shuffle, Search, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/Checkbox';
+import api from '@/lib/api';
 
 interface ShuffleVariantsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  students: any[];
-  onShuffle: (selectedStudentIds: string[]) => Promise<void>;
-  loading?: boolean;
+  testId: string;
 }
 
-export default function ShuffleVariantsModal({
-  isOpen,
-  onClose,
-  students,
-  onShuffle,
-  loading = false
-}: ShuffleVariantsModalProps) {
-  const [selectedStudents, setSelectedStudents] = useState<string[]>(
-    students.map(s => s._id)
-  );
-  const [searchQuery, setSearchQuery] = useState('');
+export default function ShuffleVariantsModal({ isOpen, onClose, testId }: ShuffleVariantsModalProps) {
+  const [variantsCount, setVariantsCount] = useState<number>(4);
+  const [shuffleQuestions, setShuffleQuestions] = useState(true);
+  const [shuffleAnswers, setShuffleAnswers] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
-  const filteredStudents = students.filter(student =>
-    student.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  if (!isOpen) return null;
 
-  const handleToggleAll = () => {
-    if (selectedStudents.length === students.length) {
-      setSelectedStudents([]);
-    } else {
-      setSelectedStudents(students.map(s => s._id));
+  const handleCreate = async () => {
+    setIsCreating(true);
+    setError('');
+
+    try {
+      const { data } = await api.post(`/tests/${testId}/shuffle`, {
+        variantsCount,
+        shuffleQuestions,
+        shuffleAnswers,
+      });
+
+      setDownloadUrl(data.downloadUrl);
+      setIsComplete(true);
+    } catch (err: any) {
+      console.error('❌ Error creating variants:', err);
+      setError(err.response?.data?.message || 'Variantlar yaratishda xatolik');
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const handleToggleStudent = (studentId: string) => {
-    if (selectedStudents.includes(studentId)) {
-      setSelectedStudents(selectedStudents.filter(id => id !== studentId));
-    } else {
-      setSelectedStudents([...selectedStudents, studentId]);
+  const handleDownload = () => {
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank');
     }
   };
 
-  const handleShuffle = async () => {
-    if (!confirm(`${selectedStudents.length} ta o'quvchi uchun variantlarni aralashtirib berasizmi?\n\nBu amal:\n• Savollar tartibini o'zgartiradi\n• Javoblar tartibini o'zgartiradi\n• Yangi variant kodlari yaratiladi\n\nBu amalni qaytarib bo'lmaydi!`)) {
-      return;
-    }
-    await onShuffle(selectedStudents);
+  const handleClose = () => {
+    setVariantsCount(4);
+    setShuffleQuestions(true);
+    setShuffleAnswers(true);
+    setIsComplete(false);
+    setDownloadUrl('');
+    setError('');
+    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="max-w-2xl">
-      <div className="p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Variantlarni aralashtirib berish
-        </h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Tanlangan o'quvchilar uchun test savollari va javoblari aralashtiriladi
-        </p>
-
-        {/* Warning */}
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex gap-3">
-          <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-orange-800">
-            <p className="font-medium mb-1">Diqqat!</p>
-            <p>
-              Bu amal qaytarib bo'lmaydi. Variantlar aralashtirilgandan keyin eski
-              variant kodlari ishlamay qoladi.
-            </p>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="O'quvchi ismini qidirish..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        {/* Select All */}
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <Checkbox
-              checked={selectedStudents.length === students.length}
-              onChange={handleToggleAll}
-            />
-            <span className="font-medium text-gray-900">
-              Barchasini tanlash ({selectedStudents.length}/{students.length})
-            </span>
-          </label>
-        </div>
-
-        {/* Students List */}
-        <div className="max-h-96 overflow-y-auto space-y-2 mb-6">
-          {filteredStudents.map((student) => (
-            <div
-              key={student._id}
-              className="p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <label className="flex items-center gap-3 cursor-pointer">
-                <Checkbox
-                  checked={selectedStudents.includes(student._id)}
-                  onChange={() => handleToggleStudent(student._id)}
-                />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{student.fullName}</p>
-                  <p className="text-sm text-gray-600">
-                    {student.directionId?.nameUzb || 'Yo\'nalish ko\'rsatilmagan'}
-                  </p>
-                </div>
-              </label>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Shuffle className="w-5 h-5 text-blue-600" />
             </div>
-          ))}
+            <h2 className="text-xl font-bold text-gray-900">Variantlarni aralashtirish</h2>
+          </div>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
-            className="flex-1"
-            disabled={loading}
-          >
-            Bekor qilish
-          </Button>
-          <Button
-            onClick={handleShuffle}
-            disabled={selectedStudents.length === 0 || loading}
-            loading={loading}
-            className="flex-1 bg-orange-600 hover:bg-orange-700"
-          >
-            <Shuffle className="w-4 h-4 mr-2" />
-            {loading ? 'Aralashtirilmoqda...' : `Aralashtirib berish (${selectedStudents.length})`}
-          </Button>
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {!isComplete ? (
+            <>
+              {/* Variants Count */}
+              <Input
+                label="Variantlar soni"
+                type="number"
+                min={1}
+                max={26}
+                value={variantsCount}
+                onChange={(e) => setVariantsCount(parseInt(e.target.value) || 1)}
+                helperText="1 dan 26 gacha variant yaratish mumkin"
+              />
+
+              {/* Shuffle Options */}
+              <div className="space-y-3">
+                <Checkbox
+                  label="Savollarni aralashtirish"
+                  checked={shuffleQuestions}
+                  onChange={(e) => setShuffleQuestions(e.target.checked)}
+                />
+
+                <Checkbox
+                  label="Javoblarni aralashtirish"
+                  checked={shuffleAnswers}
+                  onChange={(e) => setShuffleAnswers(e.target.checked)}
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleCreate}
+                  disabled={isCreating}
+                  loading={isCreating}
+                  className="flex-1"
+                >
+                  {isCreating ? 'Yaratilmoqda...' : 'Yaratish'}
+                </Button>
+                <Button variant="outline" onClick={handleClose} disabled={isCreating}>
+                  Bekor qilish
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Success State */}
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  Variantlar muvaffaqiyatli yaratildi!
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {variantsCount} ta variant tayyor
+                </p>
+              </div>
+
+              {/* Download Button */}
+              <Button
+                onClick={handleDownload}
+                variant="success"
+                className="w-full"
+                size="lg"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                ZIP faylni yuklab olish
+              </Button>
+
+              <Button variant="outline" onClick={handleClose} className="w-full">
+                Yopish
+              </Button>
+            </>
+          )}
         </div>
       </div>
-    </Dialog>
+    </div>
   );
 }

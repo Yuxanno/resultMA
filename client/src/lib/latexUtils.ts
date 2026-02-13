@@ -2,17 +2,21 @@
  * Utilities for converting LaTeX format to TipTap JSON format
  */
 
+import { hasMathML, convertMathMLToLatex } from './mathmlUtils';
+
 /**
- * Check if text contains LaTeX formulas
+ * Check if text contains LaTeX formulas or MathML
  */
 export function hasLatexFormulas(text: string): boolean {
   if (!text) return false;
   // Ищем \( или \[ (одинарный слеш, так как в JS строке он уже распарсен)
-  return text.includes('\\(') || text.includes('\\[');
+  // Или проверяем наличие MathML
+  return text.includes('\\(') || text.includes('\\[') || hasMathML(text);
 }
 
 /**
  * Convert text with LaTeX formulas \\(...\\) to TipTap JSON format
+ * Также поддерживает MathML из Word
  */
 export function convertLatexToTiptapJson(text: string): any {
   if (!text) {
@@ -22,8 +26,15 @@ export function convertLatexToTiptapJson(text: string): any {
     };
   }
 
+  // Сначала конвертируем MathML в LaTeX (если есть)
+  let processedText = text;
+  if (hasMathML(text)) {
+    console.log('🔄 Detected MathML in text, converting to LaTeX...');
+    processedText = convertMathMLToLatex(text);
+  }
+
   // Убираем \text{} обертки (AI иногда добавляет их)
-  let cleanedText = text.replace(/\\text\{([^}]+)\}/g, '$1');
+  let cleanedText = processedText.replace(/\\text\{([^}]+)\}/g, '$1');
 
   // Если нет формул, возвращаем простой текст
   if (!hasLatexFormulas(cleanedText)) {
@@ -109,11 +120,19 @@ export function convertLatexToTiptapJson(text: string): any {
 
 /**
  * Convert text with LaTeX formulas to HTML (fallback method)
+ * Также поддерживает MathML из Word
  */
 export function convertLatexToHtml(text: string): string {
   if (!text) return '<p></p>';
   
-  let html = text;
+  // Сначала конвертируем MathML в LaTeX (если есть)
+  let processedText = text;
+  if (hasMathML(text)) {
+    console.log('🔄 Detected MathML in text, converting to LaTeX...');
+    processedText = convertMathMLToLatex(text);
+  }
+  
+  let html = processedText;
   
   // Заменяем \( ... \) на <span data-type="formula" data-latex="...">
   html = html.replace(/\\\(([^)]+)\\\)/g, (match, latex) => {
@@ -131,4 +150,63 @@ export function convertLatexToHtml(text: string): string {
   }
   
   return html;
+}
+
+/**
+ * Convert TipTap JSON to text with LaTeX formulas
+ * Используется для печати и экспорта
+ */
+export function convertTiptapJsonToText(json: any): string {
+  if (!json) return '';
+  
+  // Если это строка, пытаемся распарсить
+  if (typeof json === 'string') {
+    try {
+      json = JSON.parse(json);
+    } catch {
+      // Если не JSON, возвращаем как есть
+      return json;
+    }
+  }
+  
+  // Если это не объект, возвращаем как есть
+  if (typeof json !== 'object') {
+    return String(json);
+  }
+  
+  // Рекурсивная функция для обработки узлов
+  function processNode(node: any): string {
+    if (!node) return '';
+    
+    // Текстовый узел
+    if (node.type === 'text') {
+      return node.text || '';
+    }
+    
+    // Формула
+    if (node.type === 'formula') {
+      const latex = node.attrs?.latex || '';
+      return `<span data-type="formula" data-latex="${latex}"></span>`;
+    }
+    
+    // Параграф
+    if (node.type === 'paragraph') {
+      const content = node.content?.map(processNode).join('') || '';
+      return content;
+    }
+    
+    // Документ
+    if (node.type === 'doc') {
+      return node.content?.map(processNode).join('\n') || '';
+    }
+    
+    // Обработка content если есть
+    if (node.content) {
+      return node.content.map(processNode).join('');
+    }
+    
+    return '';
+  }
+  
+  return processNode(json);
 }

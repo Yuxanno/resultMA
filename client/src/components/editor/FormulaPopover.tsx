@@ -27,9 +27,11 @@ export default function FormulaPopover({ anchorEl, initialLatex, onSave, onClose
   const popoverRef = useRef<HTMLDivElement>(null);
   const mathFieldRef = useRef<HTMLDivElement>(null);
   const mathFieldInstance = useRef<any>(null);
-  const isInserting = useRef(false); // Флаг для предотвращения автосохранения во время вставки
+  const isInserting = useRef(false);
   const onSaveRef = useRef(onSave);
   const onCloseRef = useRef(onClose);
+
+  console.log('🔍 [FormulaPopover] Initialized with:', { initialLatex });
 
   // Обновляем refs при изменении пропсов
   useEffect(() => {
@@ -118,12 +120,16 @@ export default function FormulaPopover({ anchorEl, initialLatex, onSave, onClose
   useEffect(() => {
     const loadMathQuill = async () => {
       try {
+        console.log('🔄 [FormulaPopover] Starting MathQuill load...');
+        
         if (window.MathQuill) {
+          console.log('✅ [FormulaPopover] MathQuill already loaded');
           setIsLoading(false);
           return;
         }
 
         if (!window.jQuery) {
+          console.log('🔄 [FormulaPopover] Loading jQuery...');
           const jqueryScript = document.createElement('script');
           jqueryScript.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
           document.head.appendChild(jqueryScript);
@@ -132,15 +138,18 @@ export default function FormulaPopover({ anchorEl, initialLatex, onSave, onClose
             jqueryScript.onerror = reject;
           });
           window.$ = window.jQuery;
+          console.log('✅ [FormulaPopover] jQuery loaded');
         }
 
         if (!document.querySelector('link[href*="mathquill"]')) {
+          console.log('🔄 [FormulaPopover] Loading MathQuill CSS...');
           const mathquillCSS = document.createElement('link');
           mathquillCSS.rel = 'stylesheet';
           mathquillCSS.href = 'https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.css';
           document.head.appendChild(mathquillCSS);
         }
 
+        console.log('🔄 [FormulaPopover] Loading MathQuill JS...');
         const mathquillScript = document.createElement('script');
         mathquillScript.src = 'https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.min.js';
         document.head.appendChild(mathquillScript);
@@ -149,9 +158,10 @@ export default function FormulaPopover({ anchorEl, initialLatex, onSave, onClose
           mathquillScript.onerror = reject;
         });
 
+        console.log('✅ [FormulaPopover] MathQuill loaded successfully');
         setIsLoading(false);
       } catch (err) {
-        console.error('Error loading MathQuill:', err);
+        console.error('❌ [FormulaPopover] Error loading MathQuill:', err);
         setIsLoading(false);
       }
     };
@@ -199,6 +209,41 @@ export default function FormulaPopover({ anchorEl, initialLatex, onSave, onClose
           console.log('[FormulaPopover] Setting initial latex:', initialLatex);
           mathFieldInstance.current.latex(initialLatex);
         }
+
+        // Применяем стили для исправления обрезания ПОСЛЕ инициализации
+        setTimeout(() => {
+          if (mathFieldRef.current) {
+            const mqField = mathFieldRef.current.querySelector('.mq-editable-field') as HTMLElement;
+            const mqRoot = mathFieldRef.current.querySelector('.mq-root-block') as HTMLElement;
+            
+            if (mqField) {
+              // Убираем фиксированную высоту и делаем auto-expand
+              mqField.style.overflow = 'auto';
+              mqField.style.overflowX = 'auto';
+              mqField.style.overflowY = 'auto';
+              mqField.style.minHeight = '280px';
+              mqField.style.maxHeight = '400px';
+              mqField.style.height = 'auto';
+              mqField.style.paddingTop = '20px';
+              mqField.style.paddingBottom = '20px';
+              mqField.style.paddingLeft = '12px';
+              mqField.style.paddingRight = '12px';
+              mqField.style.wordWrap = 'break-word';
+              mqField.style.overflowWrap = 'break-word';
+              mqField.style.whiteSpace = 'normal';
+              console.log('✅ [FormulaPopover] Applied styles to MathQuill field');
+            }
+            
+            if (mqRoot) {
+              mqRoot.style.overflow = 'visible';
+              mqRoot.style.minHeight = 'auto';
+              mqRoot.style.height = 'auto';
+              mqRoot.style.whiteSpace = 'normal';
+              mqRoot.style.wordWrap = 'break-word';
+              console.log('✅ [FormulaPopover] Applied styles to MathQuill root');
+            }
+          }
+        }, 150);
 
         // Фокусируем и показываем курсор
         setTimeout(() => {
@@ -669,16 +714,21 @@ export default function FormulaPopover({ anchorEl, initialLatex, onSave, onClose
               </div>
             </div>
 
-            {/* Editor */}
-            <div className="p-2 sm:p-4 flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white" style={{ minHeight: '120px', maxHeight: '200px' }}>
+            {/* Editor - Formula input field with 350px height - v2.0 */}
+            <div 
+              className="p-2 sm:p-4 flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white" 
+              style={{ 
+                minHeight: '280px',
+                maxHeight: '450px'
+              }}
+            >
               <label className="text-xs sm:text-sm text-gray-700 mb-1.5 sm:mb-2 block font-semibold flex items-center gap-1 sm:gap-2">
                 <span className="text-base sm:text-lg">✏️</span>
                 Formula:
               </label>
               <div
                 ref={mathFieldRef}
-                className="w-full border-2 border-gray-300 rounded-lg p-2 sm:p-4 min-h-[80px] sm:min-h-[100px] bg-white shadow-sm hover:border-blue-400 hover:shadow-md focus-within:border-blue-500 focus-within:ring-2 sm:focus-within:ring-4 focus-within:ring-blue-100 transition-all overflow-x-auto"
-                style={{ fontSize: '20px' }}
+                className="mathquill-formula-field w-full border-2 border-gray-300 rounded-lg bg-white shadow-sm hover:border-blue-400 hover:shadow-md focus-within:border-blue-500 focus-within:ring-2 sm:focus-within:ring-4 focus-within:ring-blue-100 transition-all"
               />
               <p className="text-xs text-gray-500 mt-2 sm:mt-3 flex items-center gap-1.5">
                 <span>💡</span>

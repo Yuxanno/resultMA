@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
 import { Plus, Trash2 } from 'lucide-react';
 import RichTextEditor from './editor/RichTextEditor';
@@ -213,38 +212,46 @@ export default function AssignmentQuestionEditor({ type, questions, onChange }: 
                       
                       <div className="space-y-2">
                         {(question.variants || []).map((variant, vIndex) => (
-                          <div key={vIndex} className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => updateQuestion(qIndex, 'correctAnswer', variant.letter)}
-                              className={`
-                                w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0 transition-all
-                                ${question.correctAnswer === variant.letter 
-                                  ? 'bg-green-500 shadow-md' 
-                                  : 'bg-gray-300 hover:bg-gray-400'
-                                }
-                              `}
-                            >
-                              {variant.letter}
-                            </button>
-
-                            <Input
-                              value={variant.text}
-                              onChange={(e) => updateVariant(qIndex, vIndex, 'text', e.target.value)}
-                              placeholder={`Variant ${variant.letter}`}
-                              className="flex-1"
-                              required
-                            />
-
-                            {(question.variants?.length || 0) > 2 && (
+                          <div key={vIndex} className="space-y-2 border border-gray-200 rounded-lg p-2 sm:p-3 bg-gray-50">
+                            {/* Variant Header - Letter and Delete Button */}
+                            <div className="flex items-center justify-between gap-2">
                               <button
                                 type="button"
-                                onClick={() => removeVariant(qIndex, vIndex)}
-                                className="p-2 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors"
+                                onClick={() => updateQuestion(qIndex, 'correctAnswer', variant.letter)}
+                                className={`
+                                  w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-base sm:text-lg text-white flex-shrink-0 transition-all
+                                  ${question.correctAnswer === variant.letter 
+                                    ? 'bg-green-500 shadow-md ring-2 ring-green-300' 
+                                    : 'bg-gray-400 hover:bg-gray-500 active:bg-gray-600'
+                                  }
+                                `}
+                                title={question.correctAnswer === variant.letter ? "To'g'ri javob" : "To'g'ri javob sifatida belgilash"}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {variant.letter}
                               </button>
-                            )}
+
+                              {/* Delete Variant Button */}
+                              {(question.variants?.length || 0) > 2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeVariant(qIndex, vIndex)}
+                                  className="p-2 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 border border-gray-200 hover:border-red-400"
+                                  title="Variantni o'chirish"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Variant Input with Rich Text Editor - Full Width */}
+                            <div className="w-full">
+                              <RichTextEditor
+                                value={variant.text}
+                                onChange={(value) => updateVariant(qIndex, vIndex, 'text', value)}
+                                placeholder={`Variant ${variant.letter} matnini kiriting... (Formula qo'shish uchun Alt+= bosing)`}
+                                className="text-sm"
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>

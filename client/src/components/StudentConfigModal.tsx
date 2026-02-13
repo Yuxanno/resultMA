@@ -34,18 +34,22 @@ export default function StudentConfigModal({
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      loadAllSubjects();
-      loadDirectionSubjects();
+      Promise.all([
+        loadAllSubjects(),
+        loadDirectionSubjects()
+      ]).finally(() => {
+        console.log('✅ All data loaded');
+      });
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (config && isOpen && directionSubjects.length > 0 && allSubjects.length > 0) {
+    if (isOpen && directionSubjects.length > 0 && allSubjects.length > 0) {
       console.log('🔍 StudentConfigModal: config:', config);
       console.log('🔍 Direction subjects:', directionSubjects);
       
       // Если у ученика есть конфигурация с предметами, используем её
-      if (config.subjects && config.subjects.length > 0) {
+      if (config && config.subjects && config.subjects.length > 0) {
         console.log('🔍 Using existing config subjects:', config.subjects.length);
         setSubjects(config.subjects);
       } else {
@@ -69,7 +73,7 @@ export default function StudentConfigModal({
         setSubjects(defaultSubjects);
       }
       
-      const defaultPointsConfig = config.pointsConfig && config.pointsConfig.length > 0
+      const defaultPointsConfig = config?.pointsConfig && config.pointsConfig.length > 0
         ? config.pointsConfig
         : [{ from: 1, to: 90, points: 3.1 }];
       setPointsConfig(defaultPointsConfig);
@@ -118,13 +122,24 @@ export default function StudentConfigModal({
         const subjectIds: string[] = [];
         
         if (direction.subjects) {
-          direction.subjects.forEach((subjectChoice: any) => {
+          console.log('🔍 Direction.subjects length:', direction.subjects.length);
+          
+          direction.subjects.forEach((subjectChoice: any, index: number) => {
+            console.log(`🔍 Subject choice ${index + 1}:`, {
+              type: subjectChoice.type,
+              subjectIds: subjectChoice.subjectIds,
+              subjectIdsLength: subjectChoice.subjectIds?.length
+            });
+            
             if (subjectChoice.type === 'single') {
               // Один обязательный предмет
               subjectChoice.subjectIds.forEach((id: any) => {
+                console.log('🔍 Processing subject ID:', id, 'Type:', typeof id);
                 const subjectId = typeof id === 'string' ? id : id._id;
+                console.log('🔍 Extracted subject ID:', subjectId);
                 if (!subjectIds.includes(subjectId)) {
                   subjectIds.push(subjectId);
+                  console.log('✅ Added subject ID:', subjectId);
                 }
               });
             } else if (subjectChoice.type === 'choice') {
@@ -142,6 +157,8 @@ export default function StudentConfigModal({
               }
             }
           });
+        } else {
+          console.warn('⚠️ Direction has no subjects array!');
         }
         
         console.log('🔍 Direction subject IDs:', subjectIds);

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -9,11 +9,11 @@ import { StudentList } from '@/components/ui/StudentCard';
 import { PageNavbar } from '@/components/ui/PageNavbar';
 import { useToast } from '@/hooks/useToast';
 import { useBlockTests, useDeleteBlockTest } from '@/hooks/useBlockTests';
+import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
 import TestOptionsModal from '@/components/TestOptionsModal';
 import StudentConfigModal from '@/components/StudentConfigModal';
 import GroupConfigModal from '@/components/GroupConfigModal';
 import StudentSelectionPrintModal from '@/components/StudentSelectionPrintModal';
-import ShuffleVariantsModal from '@/components/ShuffleVariantsModal';
 import BlockTestActionsModal from '@/components/BlockTestActionsModal';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { 
@@ -41,7 +41,6 @@ import {
 
 export default function BlockTestsPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { success, error } = useToast();
   
   // React Query hooks
@@ -62,25 +61,17 @@ export default function BlockTestsPage() {
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showShuffleModal, setShowShuffleModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [printMode, setPrintMode] = useState<'all' | 'questions' | 'answers'>('all');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
-  const [configLoading, setConfigLoading] = useState(false); // Локальный loading для конфигурации
+  const [configLoading, setConfigLoading] = useState(false);
 
   // Prefetch cache для предзагрузки
   const prefetchCache = new Map<string, any>();
 
-  // Перезагружаем блок-тесты при возврате на страницу с флагом refresh
-  useEffect(() => {
-    if (location.state?.refresh) {
-      console.log('✅ Refreshing block tests after import...');
-      refetch();
-      // Очищаем state чтобы не перезагружать при следующем рендере
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, refetch, navigate]);
+  // Автоматическое обновление при возврате на страницу
+  useRefreshOnReturn(refetch);
 
   // Prefetch - загружаем данные заранее при наведении
   const prefetchBlockTestData = async (testId: string) => {
@@ -715,9 +706,23 @@ export default function BlockTestsPage() {
             setPrintMode('answers');
             setShowPrintModal(true);
           }}
-          onShuffle={() => {
+          onShuffle={async () => {
             setShowActionsModal(false);
-            setShowShuffleModal(true);
+            // Сразу перемешиваем для всех студентов без модального окна
+            try {
+              setSaving(true);
+              const studentIds = students.map(s => s._id);
+              await api.post(`/block-tests/${selectedBlockTest._id}/generate-variants`, {
+                studentIds
+              });
+              success(`${studentIds.length} ta o'quvchi uchun variantlar aralashtirildi`);
+              await loadStudents(selectedBlockTest._id);
+            } catch (err: any) {
+              console.error('Error shuffling:', err);
+              error('Variantlarni aralashtirishda xatolik');
+            } finally {
+              setSaving(false);
+            }
           }}
         />
 
@@ -729,81 +734,76 @@ export default function BlockTestsPage() {
           mode={printMode}
           onPrint={handlePrint}
         />
-
-        {/* Shuffle Modal */}
-        <ShuffleVariantsModal
-          isOpen={showShuffleModal}
-          onClose={() => setShowShuffleModal(false)}
-          students={students}
-          onShuffle={handleShuffle}
-          loading={saving}
-        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in pb-24 sm:pb-24">
-      {/* Header */}
-      <PageNavbar
-        title="Blok testlar"
-        description="Blok testlarni yaratish va boshqarish"
-        badge={`${groupedArray.length} ta`}
-        showSearch={blockTests.length > 0}
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder="Sinf yoki sana bo'yicha qidirish..."
-        showAddButton={true}
-        addButtonText="Blok test qo'shish"
-        onAddClick={() => navigate('/teacher/block-tests/create')}
-        extraActions={
-          <Button 
-            variant="outline"
-            onClick={() => navigate('/teacher/block-tests/import')}
-            className="flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">Yuklash</span>
-          </Button>
-        }
-        gradient={true}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 pb-24 sm:pb-24">
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <PageNavbar
+          title="Blok testlar"
+          description="Blok testlarni yaratish va boshqarish"
+          badge={`${groupedArray.length} ta`}
+          showSearch={blockTests.length > 0}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Sinf yoki sana bo'yicha qidirish..."
+          showAddButton={true}
+          addButtonText="Blok test qo'shish"
+          onAddClick={() => navigate('/teacher/block-tests/create')}
+          extraActions={
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/teacher/block-tests/import')}
+              className="flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Yuklash</span>
+            </Button>
+          }
+          gradient={true}
+        />
 
-      {/* Block Tests Grid */}
-      {groupedArray.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
-          {groupedArray.map((group: any, groupIndex: number) => {
-            const firstTest = group.tests[0];
-            const formattedDate = new Date(group.date).toLocaleDateString('uz-UZ', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric'
-            });
-            
-            return (
-              <div
-                key={`${group.classNumber}-${group.dateKey}`}
-                style={{ animationDelay: `${groupIndex * 100}ms` }}
-                className="animate-slide-in"
-                onMouseEnter={() => prefetchBlockTestData(firstTest._id)} // Prefetch при наведении
-              >
-                <Card 
-                  className="h-full bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer relative"
-                  onClick={() => handleCardClick(firstTest)}
+        {/* Block Tests Grid */}
+        {groupedArray.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+            {groupedArray.map((group: any, groupIndex: number) => {
+              const firstTest = group.tests[0];
+              const formattedDate = new Date(group.date).toLocaleDateString('uz-UZ', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              });
+              
+              return (
+                <div
+                  key={`${group.classNumber}-${group.dateKey}`}
+                  style={{ animationDelay: `${groupIndex * 50}ms` }}
+                  className="group animate-slide-in"
+                  onMouseEnter={() => prefetchBlockTestData(firstTest._id)}
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-sm">
+                  <div 
+                    className="glass-card h-full border border-white/20 hover:border-white/40 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/30 hover:-translate-y-2 overflow-hidden cursor-pointer p-6 relative"
+                    onClick={() => handleCardClick(firstTest)}
+                  >
+                    {/* Background Gradient Decoration */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400 to-pink-500 opacity-10 rounded-full -mr-16 -mt-16 group-hover:opacity-20 transition-opacity"></div>
+                    
+                    {/* Icon & Actions */}
+                    <div className="flex items-start justify-between mb-5 relative z-10">
+                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                         <BookOpen className="w-8 h-8 text-white" />
                       </div>
-                      
                       <div className="flex gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/teacher/block-tests/${firstTest._id}/edit`);
                           }}
-                          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+                          className="p-2.5 hover:bg-blue-100/80 backdrop-blur-sm rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                          title="Tahrirlash"
                         >
                           <Edit2 className="w-4 h-4 text-slate-600" />
                         </button>
@@ -812,49 +812,51 @@ export default function BlockTestsPage() {
                             e.stopPropagation();
                             handleDeleteTest(group);
                           }}
-                          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors"
+                          className="p-2.5 hover:bg-red-100/80 backdrop-blur-sm rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                          title="O'chirish"
                         >
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-slate-900 mb-3">
-                      {group.classNumber}-sinf
-                    </h3>
-
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className="bg-green-100 text-green-700 px-3 py-1.5 rounded-full text-sm font-semibold">
+                    {/* Block Test Info */}
+                    <div className="mb-4 relative z-10">
+                      <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-purple-600 transition-colors">
                         {group.classNumber}-sinf
-                      </span>
-                      <span className="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full text-sm font-semibold">
-                        {group.periodMonth}/{group.periodYear}
-                      </span>
+                      </h3>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <span className="px-3 py-1.5 bg-purple-100/80 backdrop-blur-sm text-purple-700 rounded-full text-sm font-semibold border border-purple-200/50">
+                          {group.classNumber}-sinf
+                        </span>
+                        <span className="px-3 py-1.5 bg-pink-100/80 backdrop-blur-sm text-pink-700 rounded-full text-sm font-semibold border border-pink-200/50">
+                          {group.periodMonth}/{group.periodYear}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                    {/* Date & Arrow */}
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-200/50 relative z-10">
                       <div className="flex items-center gap-2 text-slate-600">
                         <Calendar className="w-4 h-4" />
                         <span className="text-sm font-medium">{formattedDate}</span>
                       </div>
-                      <ArrowRight className="w-5 h-5 text-slate-400" />
+                      <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <Card className="border-2 border-slate-200/50">
-          <CardContent className="py-16 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <BookOpen className="w-10 h-10 text-slate-400" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="glass-card border border-white/20 p-16 text-center">
+            <div className="w-24 h-24 bg-gradient-to-br from-purple-400 via-pink-500 to-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-purple-500/30">
+              <BookOpen className="w-12 h-12 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent mb-3">
               {searchQuery ? 'Testlar topilmadi' : 'Blok testlar yo\'q'}
             </h3>
-            <p className="text-slate-600 mb-6 max-w-md mx-auto">
+            <p className="text-slate-600 mb-8 max-w-md mx-auto text-lg">
               {searchQuery 
                 ? 'Qidiruv bo\'yicha hech narsa topilmadi. Boshqa so\'z bilan qidiring.'
                 : 'Birinchi blok testni yaratish uchun yuqoridagi tugmani bosing'
@@ -864,21 +866,21 @@ export default function BlockTestsPage() {
               <Button 
                 size="lg"
                 onClick={() => navigate('/teacher/block-tests/import')}
-                className="bg-gradient-to-r from-purple-500 to-pink-600"
+                className="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-105 transition-all duration-300"
               >
                 <Upload className="w-5 h-5 mr-2" />
                 Blok test yuklash
               </Button>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      <TestOptionsModal
-        isOpen={showVariantsModal}
-        onClose={() => setShowVariantsModal(false)}
-        test={selectedTest}
-      />
+        <TestOptionsModal
+          isOpen={showVariantsModal}
+          onClose={() => setShowVariantsModal(false)}
+          test={selectedTest}
+        />
+      </div>
     </div>
   );
 }

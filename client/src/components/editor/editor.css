@@ -52,12 +52,12 @@
 }
 
 .mq-editable-field {
-  border: none !important;
-  width: 100% !important;
-  display: block !important;
-  min-height: 36px !important;
-  max-width: 100% !important;
-  overflow-x: auto !important;
+  border: none ;
+  width: 100% ;
+  display: block ;
+  min-height: 36px ;
+  max-width: 100% ;
+  overflow-x: auto ;
 }
 
 @media (min-width: 640px) {
@@ -131,4 +131,34 @@
   width: 1px !important;
   height: 1px !important;
   overflow: hidden !important;
+}
+
+/* Formula Popover Field - Fix clipping and sizing */
+.mathquill-formula-field {
+  overflow: visible !important;
+  font-size: 24px !important;
+  padding: 20px 12px !important;
+}
+
+.mathquill-formula-field .mq-editable-field {
+  overflow: auto !important;
+  padding: 20px 12px !important;
+  min-height: 280px !important;
+  max-height: 400px !important;
+  height: auto !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.mathquill-formula-field .mq-math-mode .mq-root-block {
+  overflow: visible !important;
+  padding: 10px 0 !important;
+  min-height: auto !important;
+  height: auto !important;
+}
+
+/* Ensure superscripts and subscripts are not clipped */
+.mathquill-formula-field .mq-sup,
+.mathquill-formula-field .mq-sub {
+  overflow: visible !important;
 }
