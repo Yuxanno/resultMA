@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "setup-test": "tsx src/scripts/setupTestData.ts",
     "create-admin": "tsx src/scripts/createAdmin.ts",
+    "create-test-user": "tsx src/scripts/createTestUser.ts",
     "seed": "tsx src/scripts/seedData.ts",
     "create-indexes": "tsx src/scripts/createIndexes.ts",
     "optimize-indexes": "tsx src/scripts/createOptimizedIndexes.ts",

@@ -11,14 +11,14 @@ async function loginAsTeacher(page: any) {
 }
 
 test.describe('Teacher Dashboard', () => {
-  test.skip('should redirect to login if not authenticated', async ({ page }) => {
+  test('should redirect to login if not authenticated', async ({ page }) => {
     await page.goto('/teacher/dashboard');
     await expect(page).toHaveURL(/\//);
   });
 
-  test.skip('should display dashboard after login', async ({ page }) => {
+  test('should display dashboard after login', async ({ page }) => {
     await loginAsTeacher(page);
-    await expect(page).toHaveURL(/teacher/);
+    await expect(page).toHaveURL(/\/teacher/);
   });
 
   test.skip('should show statistics cards', async ({ page }) => {

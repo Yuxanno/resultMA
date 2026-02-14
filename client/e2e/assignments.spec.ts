@@ -1,38 +1,38 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Assignments', () => {
-  test.skip('should display assignments list', async ({ page }) => {
+  test('should display assignments list', async ({ page }) => {
     await page.goto('/teacher/assignments');
     await expect(page).toHaveURL(/\//);
   });
 
-  test.skip('should create new assignment', async ({ page }) => {
+  test('should create new assignment', async ({ page }) => {
     // TODO: Проверка создания задания
   });
 
-  test.skip('should assign test to students', async ({ page }) => {
+  test('should assign test to students', async ({ page }) => {
     // TODO: Проверка назначения теста студентам
   });
 
-  test.skip('should set deadline', async ({ page }) => {
+  test('should set deadline', async ({ page }) => {
     // TODO: Проверка установки дедлайна
   });
 
-  test.skip('should view assignment results', async ({ page }) => {
+  test('should view assignment results', async ({ page }) => {
     // TODO: Проверка просмотра результатов
   });
 });
 
 test.describe('Assignment Details', () => {
-  test.skip('should display assignment info', async ({ page }) => {
+  test('should display assignment info', async ({ page }) => {
     // TODO: Проверка информации о задании
   });
 
-  test.skip('should show student progress', async ({ page }) => {
+  test('should show student progress', async ({ page }) => {
     // TODO: Проверка прогресса студентов
   });
 
-  test.skip('should allow grading', async ({ page }) => {
+  test('should allow grading', async ({ page }) => {
     // TODO: Проверка выставления оценок
   });
 });
