@@ -10,7 +10,7 @@ const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const PublicTestResult = lazy(() => import('./pages/PublicTestResult'));
 const BlockTestAnswerKeysPage = lazy(() => import('./pages/teacher/BlockTestAnswerKeysPage'));
 const BlockTestAllTestsPage = lazy(() => import('./pages/teacher/BlockTestAllTestsPage'));
-const BlockTestAnswerSheetsViewPage = lazy(() => import('./pages/teacher/BlockTestAnswerSheetsViewPage'));
+const TestPrintPage = lazy(() => import('./pages/teacher/TestPrintPage'));
 
 function App() {
   const { user } = useAuthStore();
@@ -35,7 +35,7 @@ function App() {
             <>
               <Route path="/teacher/block-tests/:id/answer-keys" element={<BlockTestAnswerKeysPage />} />
               <Route path="/teacher/block-tests/:id/all-tests" element={<BlockTestAllTestsPage />} />
-              <Route path="/teacher/block-tests/:id/answer-sheets" element={<BlockTestAnswerSheetsViewPage />} />
+              <Route path="/teacher/block-tests/:id/print/:type" element={<TestPrintPage />} />
               <Route path="/teacher/*" element={<TeacherLayout />} />
             </>
           )}

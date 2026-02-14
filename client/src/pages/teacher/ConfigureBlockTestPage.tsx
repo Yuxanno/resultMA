@@ -238,7 +238,7 @@ export default function ConfigureBlockTestPage() {
           url = `/teacher/block-tests/${id}/print/questions${studentParams}`;
           break;
         case 'answers':
-          url = `/teacher/block-tests/${id}/answer-sheets${studentParams}`;
+          url = `/teacher/block-tests/${id}/print/sheets${studentParams}`;
           break;
       }
       
@@ -495,7 +495,7 @@ export default function ConfigureBlockTestPage() {
         }}
         onViewAnswerSheets={() => {
           setShowActionsModal(false);
-          navigate(`/teacher/block-tests/${id}/answer-sheets`);
+          navigate(`/teacher/block-tests/${id}/print/sheets`);
         }}
         onPrintQuestions={() => {
           setShowActionsModal(false);

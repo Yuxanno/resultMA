@@ -15,12 +15,11 @@ export default function TestPrintPage() {
   const [selectedStudents, setSelectedStudents] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
   const [columnsCount, setColumnsCount] = useState(2);
-  const [testsPerPage, setTestsPerPage] = useState(1);
+  const [testsPerPage] = useState(1);
   const [sheetsPerPage, setSheetsPerPage] = useState(1);
-  const [showSettings, setShowSettings] = useState(false);
   const [fontSize, setFontSize] = useState(11);
   const [fontFamily, setFontFamily] = useState('Calibri');
-  const [spacing, setSpacing] = useState('normal');
+  const [spacing] = useState('normal');
   const [lineHeight, setLineHeight] = useState(1.5);
   const [backgroundImage, setBackgroundImage] = useState<string>('/logo.png');
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.05);
@@ -361,10 +360,12 @@ export default function TestPrintPage() {
                     }}
                     test={{
                       name: test.name || 'Test',
-                      subjectName: test.subjectId?.nameUzb || 'Test',
+                      subjectName: isBlockTest ? undefined : (test.subjectId?.nameUzb || 'Test'),
                       classNumber: test.classNumber || 10,
                       groupLetter: test.groupId?.nameUzb?.charAt(0) || 'A',
-                      groupName: test.groupId?.nameUzb
+                      groupName: test.groupId?.nameUzb,
+                      periodMonth: isBlockTest ? test.periodMonth : undefined,
+                      periodYear: isBlockTest ? test.periodYear : undefined
                     }}
                     questions={questionsToRender?.length || 0}
                     qrData={variantCode}

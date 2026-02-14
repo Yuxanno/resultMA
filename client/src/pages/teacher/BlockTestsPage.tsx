@@ -387,7 +387,7 @@ export default function BlockTestsPage() {
           url = `/teacher/block-tests/${configBlockTest._id}/print/questions${studentParams}`;
           break;
         case 'answers':
-          url = `/teacher/block-tests/${configBlockTest._id}/answer-sheets${studentParams}`;
+          url = `/teacher/block-tests/${configBlockTest._id}/print/sheets${studentParams}`;
           break;
       }
       
@@ -663,7 +663,7 @@ export default function BlockTestsPage() {
           }}
           onViewAnswerSheets={() => {
             setShowActionsModal(false);
-            navigate(`/teacher/block-tests/${configBlockTest._id}/answer-sheets`);
+            navigate(`/teacher/block-tests/${configBlockTest._id}/print/sheets`);
           }}
           onPrintQuestions={() => {
             setShowActionsModal(false);
